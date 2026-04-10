@@ -68,7 +68,7 @@ export function useEvents() {
     setEvents(prev => prev.filter(e => e.id !== id));
   }, []);
 
-  return { events, addEvent, deleteEvent };
+  return { events, addEvent, deleteEvent, refetch: fetchEvents };
 }
 
 export function useTasks() {
@@ -117,7 +117,7 @@ export function useTasks() {
     setTasks(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  return { tasks, addTask, toggleTask, deleteTask };
+  return { tasks, addTask, toggleTask, deleteTask, refetch: fetchTasks };
 }
 
 export function useSoldiers() {
@@ -159,5 +159,5 @@ export function useSoldiers() {
     setSoldiers(prev => prev.filter(s => s.id !== id));
   }, []);
 
-  return { soldiers, addSoldier, deleteSoldier };
+  return { soldiers, addSoldier, deleteSoldier, refetch: fetchSoldiers };
 }

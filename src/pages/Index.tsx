@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import CalendarView from "@/components/CalendarView";
@@ -14,9 +14,15 @@ type Tab = "calendar" | "tasks" | "soldiers" | "ai" | "stats";
 
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("calendar");
-  const { events, addEvent, deleteEvent } = useEvents();
-  const { tasks, addTask, toggleTask, deleteTask } = useTasks();
-  const { soldiers, addSoldier, deleteSoldier } = useSoldiers();
+  const { events, addEvent, deleteEvent, refetch: refetchEvents } = useEvents();
+  const { tasks, addTask, toggleTask, deleteTask, refetch: refetchTasks } = useTasks();
+  const { soldiers, addSoldier, deleteSoldier, refetch: refetchSoldiers } = useSoldiers();
+
+  const handleAIDataChanged = useCallback(() => {
+    refetchEvents();
+    refetchTasks();
+    refetchSoldiers();
+  }, [refetchEvents, refetchTasks, refetchSoldiers]);
   const { isEditMode } = useEditMode();
 
   // Handle back button: if not on calendar tab, go to calendar first
@@ -57,7 +63,7 @@ export default function Index() {
         {activeTab === "soldiers" && (
           <SoldiersView soldiers={soldiers} events={events} onAddSoldier={addSoldier} onDeleteSoldier={deleteSoldier} />
         )}
-        {activeTab === "ai" && <AIView />}
+        {activeTab === "ai" && <AIView context={{ events, tasks, soldiers }} onDataChanged={handleAIDataChanged} />}
         {activeTab === "stats" && <StatsView events={events} tasks={tasks} soldiers={soldiers} />}
       </main>
       <BottomNav active={activeTab} onTabChange={handleTabChange} />
