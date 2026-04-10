@@ -63,7 +63,7 @@ export default function Index() {
         {activeTab === "soldiers" && (
           <SoldiersView soldiers={soldiers} events={events} onAddSoldier={addSoldier} onDeleteSoldier={deleteSoldier} />
         )}
-        {activeTab === "ai" && <AIView />}
+        {activeTab === "ai" && <AIView context={{ events, tasks, soldiers }} onDataChanged={handleAIDataChanged} />}
         {activeTab === "stats" && <StatsView events={events} tasks={tasks} soldiers={soldiers} />}
       </main>
       <BottomNav active={activeTab} onTabChange={handleTabChange} />
