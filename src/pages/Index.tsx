@@ -6,7 +6,9 @@ import TasksView from "@/components/TasksView";
 import SoldiersView from "@/components/SoldiersView";
 import AIView from "@/components/AIView";
 import StatsView from "@/components/StatsView";
+import ThemeSettings from "@/components/ThemeSettings";
 import { useEvents, useTasks, useSoldiers } from "@/lib/store";
+import { useEditMode } from "@/lib/EditModeContext";
 
 type Tab = "calendar" | "tasks" | "soldiers" | "ai" | "stats";
 
@@ -15,6 +17,7 @@ export default function Index() {
   const { events, addEvent, deleteEvent } = useEvents();
   const { tasks, addTask, toggleTask, deleteTask } = useTasks();
   const { soldiers, addSoldier, deleteSoldier } = useSoldiers();
+  const { isEditMode } = useEditMode();
 
   // Handle back button: if not on calendar tab, go to calendar first
   useEffect(() => {
