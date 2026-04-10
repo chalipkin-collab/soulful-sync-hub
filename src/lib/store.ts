@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 export interface SoldierEvent {
   id: string;
   title: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   type: "מכינה" | "גיוס" | "חופשה" | "תפילה" | "אימון" | "כללי";
   description?: string;
   time?: string;
@@ -82,6 +82,15 @@ export function useTasks() {
 }
 
 export function useSoldiers() {
-  const [soldiers] = useState<Soldier[]>(INITIAL_SOLDIERS);
-  return { soldiers };
+  const [soldiers, setSoldiers] = useState<Soldier[]>(INITIAL_SOLDIERS);
+
+  const addSoldier = useCallback((soldier: Omit<Soldier, "id">) => {
+    setSoldiers(prev => [...prev, { ...soldier, id: Date.now().toString() }]);
+  }, []);
+
+  const deleteSoldier = useCallback((id: string) => {
+    setSoldiers(prev => prev.filter(s => s.id !== id));
+  }, []);
+
+  return { soldiers, addSoldier, deleteSoldier };
 }

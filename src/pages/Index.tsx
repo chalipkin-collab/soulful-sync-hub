@@ -14,17 +14,21 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("calendar");
   const { events, addEvent, deleteEvent } = useEvents();
   const { tasks, addTask, toggleTask, deleteTask } = useTasks();
-  const { soldiers } = useSoldiers();
+  const { soldiers, addSoldier, deleteSoldier } = useSoldiers();
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       <main className="flex-1 px-4 py-4 pb-24 max-w-lg mx-auto w-full">
-        {activeTab === "calendar" && <CalendarView events={events} />}
+        {activeTab === "calendar" && (
+          <CalendarView events={events} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
+        )}
         {activeTab === "tasks" && (
           <TasksView tasks={tasks} onToggle={toggleTask} onAdd={addTask} onDelete={deleteTask} />
         )}
-        {activeTab === "soldiers" && <SoldiersView soldiers={soldiers} events={events} />}
+        {activeTab === "soldiers" && (
+          <SoldiersView soldiers={soldiers} events={events} onAddSoldier={addSoldier} onDeleteSoldier={deleteSoldier} />
+        )}
         {activeTab === "ai" && <AIView />}
         {activeTab === "stats" && <StatsView events={events} tasks={tasks} soldiers={soldiers} />}
       </main>

@@ -1,5 +1,14 @@
-import { Users, Phone, Shield } from "lucide-react";
+import { useState } from "react";
+import { Users, Phone, Shield, Plus, Trash2 } from "lucide-react";
 import type { Soldier, SoldierEvent } from "@/lib/store";
+import { useEditMode } from "@/lib/EditModeContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 const STATUS_STYLES: Record<string, string> = {
   "פעיל": "bg-primary/20 text-primary",
@@ -10,14 +19,32 @@ const STATUS_STYLES: Record<string, string> = {
 interface SoldiersViewProps {
   soldiers: Soldier[];
   events: SoldierEvent[];
+  onAddSoldier?: (soldier: Omit<Soldier, "id">) => void;
+  onDeleteSoldier?: (id: string) => void;
 }
 
-export default function SoldiersView({ soldiers, events }: SoldiersViewProps) {
+export default function SoldiersView({ soldiers, events, onAddSoldier, onDeleteSoldier }: SoldiersViewProps) {
+  const { isEditMode } = useEditMode();
   const today = new Date().toISOString().split("T")[0];
   const upcoming = events
     .filter(e => e.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 3);
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [newSoldier, setNewSoldier] = useState({ name: "", unit: "", status: "פעיל" as Soldier["status"], phone: "" });
+
+  const handleAdd = () => {
+    if (!newSoldier.name.trim()) return;
+    onAddSoldier?.({
+      name: newSoldier.name.trim(),
+      unit: newSoldier.unit.trim(),
+      status: newSoldier.status,
+      phone: newSoldier.phone.trim() || undefined,
+    });
+    setNewSoldier({ name: "", unit: "", status: "פעיל", phone: "" });
+    setShowAdd(false);
+  };
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in-up">
@@ -55,7 +82,18 @@ export default function SoldiersView({ soldiers, events }: SoldiersViewProps) {
       {/* Soldiers List */}
       <div className="glass-card p-4">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm text-muted-foreground">{soldiers.length} חיילים</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">{soldiers.length} חיילים</span>
+            {isEditMode && (
+              <button
+                onClick={() => setShowAdd(true)}
+                className="flex items-center gap-1 text-primary text-xs hover:text-primary/80 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                הוסף
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-1.5">
             <Users className="w-4 h-4 text-primary" />
             <h3 className="text-sm font-semibold">רשימת חיילים</h3>
@@ -68,6 +106,14 @@ export default function SoldiersView({ soldiers, events }: SoldiersViewProps) {
               className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors animate-fade-in-up"
               style={{ animationDelay: `${i * 60}ms` }}
             >
+              {isEditMode && (
+                <button
+                  onClick={() => onDeleteSoldier?.(soldier.id)}
+                  className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
               {soldier.phone && (
                 <a href={`tel:${soldier.phone}`} className="text-primary hover:text-primary/80 transition-colors">
                   <Phone className="w-4 h-4" />
@@ -87,6 +133,56 @@ export default function SoldiersView({ soldiers, events }: SoldiersViewProps) {
           ))}
         </div>
       </div>
+
+      {/* Add Soldier Dialog */}
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-right">הוסף חייל</DialogTitle>
+            <DialogDescription className="text-right">הזן פרטי החייל החדש</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <input
+              value={newSoldier.name}
+              onChange={e => setNewSoldier(p => ({ ...p, name: e.target.value }))}
+              placeholder="שם מלא..."
+              className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+              autoFocus
+            />
+            <input
+              value={newSoldier.unit}
+              onChange={e => setNewSoldier(p => ({ ...p, unit: e.target.value }))}
+              placeholder="יחידה..."
+              className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+            />
+            <input
+              value={newSoldier.phone}
+              onChange={e => setNewSoldier(p => ({ ...p, phone: e.target.value }))}
+              placeholder="טלפון..."
+              className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+            />
+            <div className="flex gap-2 justify-end">
+              {(["פעיל", "חופשה", "מילואים"] as const).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setNewSoldier(p => ({ ...p, status: s }))}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                    newSoldier.status === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleAdd}
+              className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm"
+            >
+              הוספה
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

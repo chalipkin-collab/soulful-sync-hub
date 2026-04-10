@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CheckSquare, Plus, Trash2 } from "lucide-react";
 import type { Task } from "@/lib/store";
+import { useEditMode } from "@/lib/EditModeContext";
 
 const PRIORITY_STYLES: Record<string, { dot: string; label: string }> = {
   "דחוף": { dot: "bg-destructive", label: "text-destructive" },
@@ -16,6 +17,7 @@ interface TasksViewProps {
 }
 
 export default function TasksView({ tasks, onToggle, onAdd, onDelete }: TasksViewProps) {
+  const { isEditMode } = useEditMode();
   const [filter, setFilter] = useState<"all" | "open" | "urgent" | "done">("open");
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -83,12 +85,14 @@ export default function TasksView({ tasks, onToggle, onAdd, onDelete }: TasksVie
               }`}
               style={{ animationDelay: `${i * 60}ms` }}
             >
-              <button
-                onClick={() => onDelete(task.id)}
-                className="text-muted-foreground hover:text-destructive transition-colors p-1"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              {isEditMode && (
+                <button
+                  onClick={() => onDelete(task.id)}
+                  className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
               <div className="flex-1 text-right">
                 <p className={`text-sm font-medium ${task.completed ? "line-through text-muted-foreground" : ""}`}>
                   {task.title}
@@ -103,62 +107,66 @@ export default function TasksView({ tasks, onToggle, onAdd, onDelete }: TasksVie
                   </span>
                 </div>
               </div>
-              <button
-                onClick={() => onToggle(task.id)}
-                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                  task.completed
-                    ? "bg-primary border-primary text-primary-foreground"
-                    : "border-muted-foreground hover:border-primary"
-                }`}
-              >
-                {task.completed && <span className="text-xs">✓</span>}
-              </button>
+              {isEditMode && (
+                <button
+                  onClick={() => onToggle(task.id)}
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                    task.completed
+                      ? "bg-primary border-primary text-primary-foreground"
+                      : "border-muted-foreground hover:border-primary"
+                  }`}
+                >
+                  {task.completed && <span className="text-xs">✓</span>}
+                </button>
+              )}
             </div>
           );
         })}
       </div>
 
-      {/* Add Task */}
-      {showAdd ? (
-        <div className="glass-card p-4 flex flex-col gap-3 animate-fade-in-up">
-          <input
-            value={newTitle}
-            onChange={e => setNewTitle(e.target.value)}
-            placeholder="שם המשימה..."
-            className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
-            autoFocus
-            onKeyDown={e => e.key === "Enter" && handleAdd()}
-          />
-          <div className="flex gap-2 justify-end">
-            {(["רגיל", "בינוני", "דחוף"] as const).map(p => (
-              <button
-                key={p}
-                onClick={() => setNewPriority(p)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                  newPriority === p ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {p}
+      {/* Add Task - only in edit mode */}
+      {isEditMode && (
+        showAdd ? (
+          <div className="glass-card p-4 flex flex-col gap-3 animate-fade-in-up">
+            <input
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              placeholder="שם המשימה..."
+              className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+              autoFocus
+              onKeyDown={e => e.key === "Enter" && handleAdd()}
+            />
+            <div className="flex gap-2 justify-end">
+              {(["רגיל", "בינוני", "דחוף"] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setNewPriority(p)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                    newPriority === p ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowAdd(false)} className="flex-1 py-2 rounded-lg bg-muted text-sm">
+                ביטול
               </button>
-            ))}
+              <button onClick={handleAdd} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
+                הוספה
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setShowAdd(false)} className="flex-1 py-2 rounded-lg bg-muted text-sm">
-              ביטול
-            </button>
-            <button onClick={handleAdd} className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
-              הוספה
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          onClick={() => setShowAdd(true)}
-          className="glass-card p-3 flex items-center justify-center gap-2 text-primary hover:bg-primary/10 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span className="text-sm font-medium">הוסף משימה</span>
-        </button>
+        ) : (
+          <button
+            onClick={() => setShowAdd(true)}
+            className="glass-card p-3 flex items-center justify-center gap-2 text-primary hover:bg-primary/10 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="text-sm font-medium">הוסף משימה</span>
+          </button>
+        )
       )}
     </div>
   );
