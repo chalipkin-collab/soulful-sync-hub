@@ -46,6 +46,8 @@ export default function Index() {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       <main className="flex-1 px-4 py-4 pb-24 max-w-lg mx-auto w-full">
+        {isEditMode && <ThemeSettings />}
+        {isEditMode && <div className="h-4" />}
         {activeTab === "calendar" && (
           <CalendarView events={events} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
         )}
