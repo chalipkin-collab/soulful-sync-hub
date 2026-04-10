@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from "react";
-import { Sparkles, Send, Bot, User, Loader2 } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Sparkles, Send, Bot, User, Loader2, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Message {
   id: string;
@@ -17,17 +18,50 @@ const SUGGESTIONS = [
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
+const GREETING: Message = {
+  id: "greeting",
+  sender: "ai",
+  text: "שלום! אני העוזר החכם שלך 🪖\nאני יכול לעזור לך לנהל את לוח הזמנים, המשימות והחיילים. מה תרצה לעשות?",
+};
+
 export default function AIView() {
-  const [messages, setMessages] = useState<Message[]>([
-    { id: "1", sender: "ai", text: "שלום! אני העוזר החכם שלך 🪖\nאני יכול לעזור לך לנהל את לוח הזמנים, המשימות והחיילים. מה תרצה לעשות?" },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load chat history from DB
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("chat_messages")
+        .select("*")
+        .order("created_at", { ascending: true });
+      if (data && data.length > 0) {
+        const loaded: Message[] = [GREETING, ...data.map(m => ({
+          id: m.id,
+          text: m.content,
+          sender: (m.role === "user" ? "user" : "ai") as "user" | "ai",
+        }))];
+        setMessages(loaded);
+      }
+      setHistoryLoaded(true);
+    })();
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const persistMessage = useCallback(async (role: string, content: string) => {
+    await supabase.from("chat_messages").insert({ role, content });
+  }, []);
+
+  const clearHistory = useCallback(async () => {
+    await supabase.from("chat_messages").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    setMessages([GREETING]);
+  }, []);
 
   const handleSend = async (text?: string) => {
     const msg = text || input.trim();
@@ -38,9 +72,11 @@ export default function AIView() {
     setInput("");
     setIsLoading(true);
 
-    // Build conversation history for context
+    // Persist user message
+    persistMessage("user", msg);
+
     const history = messages
-      .filter(m => m.id !== "1") // skip initial greeting
+      .filter(m => m.id !== "greeting")
       .map(m => ({ role: m.sender === "user" ? "user" as const : "assistant" as const, content: m.text }));
     history.push({ role: "user", content: msg });
 
@@ -103,16 +139,18 @@ export default function AIView() {
         }
       }
 
-      // If no response came through
       if (!assistantText) {
-        setMessages(prev => [...prev, { id: assistantId, sender: "ai", text: "לא הצלחתי לעבד את הבקשה, נסה שוב 😊" }]);
+        assistantText = "לא הצלחתי לעבד את הבקשה, נסה שוב 😊";
+        setMessages(prev => [...prev, { id: assistantId, sender: "ai", text: assistantText }]);
       }
+
+      // Persist assistant message
+      persistMessage("assistant", assistantText);
     } catch (e) {
       console.error("AI chat error:", e);
-      setMessages(prev => [...prev, {
-        id: assistantId, sender: "ai",
-        text: e instanceof Error ? e.message : "שגיאה בחיבור לשירות AI, נסה שוב."
-      }]);
+      const errText = e instanceof Error ? e.message : "שגיאה בחיבור לשירות AI, נסה שוב.";
+      setMessages(prev => [...prev, { id: assistantId, sender: "ai", text: errText }]);
+      persistMessage("assistant", errText);
     } finally {
       setIsLoading(false);
     }
@@ -120,9 +158,18 @@ export default function AIView() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] animate-fade-in-up">
-      <div className="flex items-center gap-2 justify-end mb-4">
-        <h2 className="text-xl font-bold">עוזר חכם</h2>
-        <Sparkles className="w-5 h-5 text-primary" />
+      <div className="flex items-center gap-2 justify-between mb-4">
+        <button
+          onClick={clearHistory}
+          className="text-muted-foreground hover:text-destructive transition-colors p-2"
+          title="נקה היסטוריה"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-bold">עוזר חכם</h2>
+          <Sparkles className="w-5 h-5 text-primary" />
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto flex flex-col gap-3 pb-4">
@@ -165,7 +212,7 @@ export default function AIView() {
         <div ref={messagesEndRef} />
       </div>
 
-      {messages.length <= 2 && (
+      {messages.length <= 2 && historyLoaded && (
         <div className="flex gap-2 flex-wrap justify-end mb-3">
           {SUGGESTIONS.map(s => (
             <button
