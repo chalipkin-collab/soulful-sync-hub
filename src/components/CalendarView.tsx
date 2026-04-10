@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { ChevronRight, ChevronLeft, Clock, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, ChevronLeft, Clock, Plus, Trash2, CalendarPlus } from "lucide-react";
+import { downloadICS } from "@/lib/calendarExport";
 import type { SoldierEvent } from "@/lib/store";
 import { useEditMode } from "@/lib/EditModeContext";
 import {
