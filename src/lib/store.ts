@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface SoldierEvent {
   id: string;
@@ -25,38 +26,45 @@ export interface Soldier {
   phone?: string;
 }
 
-const INITIAL_EVENTS: SoldierEvent[] = [
-  { id: "1", title: "מועד פתיחה 2 מכינות במעלות צור", date: "2026-04-22", type: "מכינה" },
-  { id: "2", title: "תפילת שחרית משותפת", date: "2026-04-15", type: "תפילה", time: "06:30" },
-  { id: "3", title: "אימון כושר קרבי", date: "2026-04-18", type: "אימון", time: "08:00" },
-  { id: "4", title: "גיוס מחזור אפריל", date: "2026-04-28", type: "גיוס" },
-  { id: "5", title: "חופשת פסח", date: "2026-04-12", type: "חופשה" },
-  { id: "6", title: "הרצאה בנושא ביטחון", date: "2026-04-20", type: "כללי", time: "14:00" },
-];
-
-const INITIAL_TASKS: Task[] = [
-  { id: "1", title: "לדבר עם לי״ן ושואן", dueDate: "2026-04-12", priority: "בינוני", completed: false },
-  { id: "2", title: "לעדכן רשימת חיילים", dueDate: "2026-04-14", priority: "דחוף", completed: false },
-  { id: "3", title: "להכין לוח זמנים לשבוע הבא", dueDate: "2026-04-13", priority: "רגיל", completed: false },
-  { id: "4", title: "לאשר חופשות פסח", dueDate: "2026-04-11", priority: "דחוף", completed: true },
-];
-
-const INITIAL_SOLDIERS: Soldier[] = [
-  { id: "1", name: "יוסף כהן", unit: "פלוגה א׳", status: "פעיל", phone: "050-1234567" },
-  { id: "2", name: "דוד לוי", unit: "פלוגה א׳", status: "פעיל", phone: "050-2345678" },
-  { id: "3", name: "משה ישראלי", unit: "פלוגה ב׳", status: "חופשה", phone: "050-3456789" },
-  { id: "4", name: "אברהם פרידמן", unit: "פלוגה ב׳", status: "פעיל", phone: "050-4567890" },
-  { id: "5", name: "יעקב גולדשטיין", unit: "פלוגה א׳", status: "מילואים", phone: "050-5678901" },
-];
-
 export function useEvents() {
-  const [events, setEvents] = useState<SoldierEvent[]>(INITIAL_EVENTS);
+  const [events, setEvents] = useState<SoldierEvent[]>([]);
 
-  const addEvent = useCallback((event: Omit<SoldierEvent, "id">) => {
-    setEvents(prev => [...prev, { ...event, id: Date.now().toString() }]);
+  const fetchEvents = useCallback(async () => {
+    const { data } = await supabase.from("events").select("*");
+    if (data) {
+      setEvents(data.map(e => ({
+        id: e.id,
+        title: e.title,
+        date: e.date,
+        type: e.type as SoldierEvent["type"],
+        description: e.description ?? undefined,
+        time: e.time ?? undefined,
+      })));
+    }
   }, []);
 
-  const deleteEvent = useCallback((id: string) => {
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
+  const addEvent = useCallback(async (event: Omit<SoldierEvent, "id">) => {
+    const { data } = await supabase.from("events").insert({
+      title: event.title,
+      date: event.date,
+      type: event.type,
+      description: event.description ?? null,
+      time: event.time ?? null,
+    }).select().single();
+    if (data) {
+      setEvents(prev => [...prev, {
+        id: data.id, title: data.title, date: data.date,
+        type: data.type as SoldierEvent["type"],
+        description: data.description ?? undefined,
+        time: data.time ?? undefined,
+      }]);
+    }
+  }, []);
+
+  const deleteEvent = useCallback(async (id: string) => {
+    await supabase.from("events").delete().eq("id", id);
     setEvents(prev => prev.filter(e => e.id !== id));
   }, []);
 
@@ -64,17 +72,48 @@ export function useEvents() {
 }
 
 export function useTasks() {
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
-  const addTask = useCallback((task: Omit<Task, "id">) => {
-    setTasks(prev => [...prev, { ...task, id: Date.now().toString() }]);
+  const fetchTasks = useCallback(async () => {
+    const { data } = await supabase.from("tasks").select("*");
+    if (data) {
+      setTasks(data.map(t => ({
+        id: t.id,
+        title: t.title,
+        dueDate: t.due_date,
+        priority: t.priority as Task["priority"],
+        completed: t.completed,
+      })));
+    }
   }, []);
 
-  const toggleTask = useCallback((id: string) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  useEffect(() => { fetchTasks(); }, [fetchTasks]);
+
+  const addTask = useCallback(async (task: Omit<Task, "id">) => {
+    const { data } = await supabase.from("tasks").insert({
+      title: task.title,
+      due_date: task.dueDate,
+      priority: task.priority,
+      completed: task.completed,
+    }).select().single();
+    if (data) {
+      setTasks(prev => [...prev, {
+        id: data.id, title: data.title, dueDate: data.due_date,
+        priority: data.priority as Task["priority"], completed: data.completed,
+      }]);
+    }
   }, []);
 
-  const deleteTask = useCallback((id: string) => {
+  const toggleTask = useCallback(async (id: string) => {
+    const task = (await supabase.from("tasks").select("completed").eq("id", id).single()).data;
+    if (task) {
+      await supabase.from("tasks").update({ completed: !task.completed }).eq("id", id);
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+    }
+  }, []);
+
+  const deleteTask = useCallback(async (id: string) => {
+    await supabase.from("tasks").delete().eq("id", id);
     setTasks(prev => prev.filter(t => t.id !== id));
   }, []);
 
@@ -82,13 +121,41 @@ export function useTasks() {
 }
 
 export function useSoldiers() {
-  const [soldiers, setSoldiers] = useState<Soldier[]>(INITIAL_SOLDIERS);
+  const [soldiers, setSoldiers] = useState<Soldier[]>([]);
 
-  const addSoldier = useCallback((soldier: Omit<Soldier, "id">) => {
-    setSoldiers(prev => [...prev, { ...soldier, id: Date.now().toString() }]);
+  const fetchSoldiers = useCallback(async () => {
+    const { data } = await supabase.from("soldiers").select("*");
+    if (data) {
+      setSoldiers(data.map(s => ({
+        id: s.id,
+        name: s.name,
+        unit: s.unit,
+        status: s.status as Soldier["status"],
+        phone: s.phone ?? undefined,
+      })));
+    }
   }, []);
 
-  const deleteSoldier = useCallback((id: string) => {
+  useEffect(() => { fetchSoldiers(); }, [fetchSoldiers]);
+
+  const addSoldier = useCallback(async (soldier: Omit<Soldier, "id">) => {
+    const { data } = await supabase.from("soldiers").insert({
+      name: soldier.name,
+      unit: soldier.unit,
+      status: soldier.status,
+      phone: soldier.phone ?? null,
+    }).select().single();
+    if (data) {
+      setSoldiers(prev => [...prev, {
+        id: data.id, name: data.name, unit: data.unit,
+        status: data.status as Soldier["status"],
+        phone: data.phone ?? undefined,
+      }]);
+    }
+  }, []);
+
+  const deleteSoldier = useCallback(async (id: string) => {
+    await supabase.from("soldiers").delete().eq("id", id);
     setSoldiers(prev => prev.filter(s => s.id !== id));
   }, []);
 

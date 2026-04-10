@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { ChevronRight, ChevronLeft, Clock, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, ChevronLeft, Clock, Plus, Trash2, CalendarPlus } from "lucide-react";
+import { downloadICS } from "@/lib/calendarExport";
 import type { SoldierEvent } from "@/lib/store";
 import { useEditMode } from "@/lib/EditModeContext";
 import {
@@ -212,9 +213,18 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent }: Cale
                     )}
                   </div>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full text-primary-foreground font-medium ${TYPE_COLORS[event.type]}`}>
-                  {event.type}
-                </span>
+                <div className="flex flex-col items-center gap-1">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full text-primary-foreground font-medium ${TYPE_COLORS[event.type]}`}>
+                    {event.type}
+                  </span>
+                  <button
+                    onClick={() => downloadICS(event)}
+                    className="text-muted-foreground hover:text-primary transition-colors p-0.5"
+                    title="הוסף ללוח שנה עם תזכורת"
+                  >
+                    <CalendarPlus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
