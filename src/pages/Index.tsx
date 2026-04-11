@@ -83,7 +83,12 @@ export default function Index() {
         {activeTab === "stats" && <StatsView events={events} tasks={tasks} soldiers={soldiers} />}
         {activeCustomTab && <CustomTabView tabId={activeCustomTab} />}
       </main>
-      <BottomNav active={activeTab} onTabChange={handleTabChange} customTabs={visibleCustomTabs} />
+      <BottomNav
+        active={activeTab}
+        onTabChange={handleTabChange}
+        customTabs={visibleCustomTabs}
+        onRenameTab={(id, name) => updateTab(id, { name })}
+      />
     </div>
   );
 }
