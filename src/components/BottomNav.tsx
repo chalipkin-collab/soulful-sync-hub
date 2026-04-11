@@ -12,7 +12,7 @@ interface BottomNavProps {
 }
 
 const builtinTabs: { id: string; label: string; icon: typeof Calendar }[] = [
-  { id: "stats", label: "שבצ״ק", icon: BarChart3 },
+  { id: "stats", label: "סיכום", icon: BarChart3 },
   { id: "ai", label: "AI", icon: Sparkles },
   { id: "soldiers", label: "חיילים", icon: Users },
   { id: "tasks", label: "משימות", icon: CheckSquare },
