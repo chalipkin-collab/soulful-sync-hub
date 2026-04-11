@@ -35,6 +35,94 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_tab_columns: {
+        Row: {
+          id: string
+          name: string
+          sort_order: number
+          tab_id: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          sort_order?: number
+          tab_id: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          sort_order?: number
+          tab_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_tab_columns_tab_id_fkey"
+            columns: ["tab_id"]
+            isOneToOne: false
+            referencedRelation: "custom_tabs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_tab_rows: {
+        Row: {
+          created_at: string
+          id: string
+          row_data: Json
+          sort_order: number
+          tab_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          row_data?: Json
+          sort_order?: number
+          tab_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          row_data?: Json
+          sort_order?: number
+          tab_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_tab_rows_tab_id_fkey"
+            columns: ["tab_id"]
+            isOneToOne: false
+            referencedRelation: "custom_tabs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_tabs: {
+        Row: {
+          created_at: string
+          icon: string
+          id: string
+          name: string
+          sort_order: number
+          visible_in_view: boolean
+        }
+        Insert: {
+          created_at?: string
+          icon?: string
+          id?: string
+          name: string
+          sort_order?: number
+          visible_in_view?: boolean
+        }
+        Update: {
+          created_at?: string
+          icon?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          visible_in_view?: boolean
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           created_at: string
