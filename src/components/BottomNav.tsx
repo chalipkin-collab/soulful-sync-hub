@@ -49,7 +49,7 @@ export default function BottomNav({ active, onTabChange, customTabs = [], onRena
           <button
             key={id}
             onClick={() => editingTabId !== id && onTabChange(id)}
-            className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all duration-200 min-w-[56px] flex-shrink-0 ${
+            className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-all duration-200 min-w-[64px] flex-shrink-0 ${
               active === id
                 ? "text-primary scale-105"
                 : "text-muted-foreground hover:text-foreground"
