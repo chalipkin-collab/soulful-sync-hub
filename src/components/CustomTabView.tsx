@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Plus, Trash2, Upload, Download, PlusCircle } from "lucide-react";
+import { Plus, Trash2, Upload, Download, PlusCircle, Pencil } from "lucide-react";
 import { useCustomTabData } from "@/lib/customTabsStore";
 import { useEditMode } from "@/lib/EditModeContext";
 import { Button } from "@/components/ui/button";
@@ -14,12 +14,16 @@ interface CustomTabViewProps {
 }
 
 export default function CustomTabView({ tabId }: CustomTabViewProps) {
-  const { columns, rows, setColumnsAndRows, addRow, deleteRow, addColumn } = useCustomTabData(tabId);
+  const { columns, rows, setColumnsAndRows, addRow, updateRow, deleteRow, addColumn, deleteColumn, updateColumn, refetch } = useCustomTabData(tabId);
   const { isEditMode } = useEditMode();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [newColName, setNewColName] = useState("");
   const [addRowOpen, setAddRowOpen] = useState(false);
   const [newRowData, setNewRowData] = useState<Record<string, string>>({});
+  const [editingCell, setEditingCell] = useState<{ rowId: string; colName: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [editingColId, setEditingColId] = useState<string | null>(null);
+  const [editColName, setEditColName] = useState("");
 
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -78,6 +82,62 @@ export default function CustomTabView({ tabId }: CustomTabViewProps) {
     setAddRowOpen(false);
   };
 
+  const startEditCell = (rowId: string, colName: string, currentValue: string) => {
+    if (!isEditMode) return;
+    setEditingCell({ rowId, colName });
+    setEditValue(currentValue);
+  };
+
+  const commitEditCell = async () => {
+    if (!editingCell) return;
+    const row = rows.find(r => r.id === editingCell.rowId);
+    if (row) {
+      const newData = { ...row.rowData, [editingCell.colName]: editValue };
+      await updateRow(editingCell.rowId, newData);
+    }
+    setEditingCell(null);
+  };
+
+  const startEditColumn = (colId: string, name: string) => {
+    setEditingColId(colId);
+    setEditColName(name);
+  };
+
+  const commitEditColumn = async () => {
+    if (!editingColId) return;
+    const col = columns.find(c => c.id === editingColId);
+    if (col && editColName.trim() && editColName.trim() !== col.name) {
+      const oldName = col.name;
+      const newName = editColName.trim();
+      // Update column name
+      await updateColumn(editingColId, newName);
+      // Update all rows to use new column name
+      for (const row of rows) {
+        if (oldName in row.rowData) {
+          const newData = { ...row.rowData };
+          newData[newName] = newData[oldName] ?? "";
+          delete newData[oldName];
+          await updateRow(row.id, newData);
+        }
+      }
+      await refetch();
+    }
+    setEditingColId(null);
+  };
+
+  const handleDeleteColumn = async (colId: string, colName: string) => {
+    await deleteColumn(colId);
+    // Remove column data from all rows
+    for (const row of rows) {
+      if (colName in row.rowData) {
+        const newData = { ...row.rowData };
+        delete newData[colName];
+        await updateRow(row.id, newData);
+      }
+    }
+    await refetch();
+  };
+
   return (
     <div className="space-y-4">
       {/* Toolbar */}
@@ -115,12 +175,37 @@ export default function CustomTabView({ tabId }: CustomTabViewProps) {
 
       {/* Table */}
       {columns.length > 0 ? (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <div className="rounded-lg border border-border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 {columns.map(c => (
-                  <TableHead key={c.id} className="text-right">{c.name}</TableHead>
+                  <TableHead key={c.id} className="text-right">
+                    {isEditMode && editingColId === c.id ? (
+                      <Input
+                        value={editColName}
+                        onChange={e => setEditColName(e.target.value)}
+                        onBlur={commitEditColumn}
+                        onKeyDown={e => e.key === "Enter" && commitEditColumn()}
+                        className="h-7 text-sm"
+                        autoFocus
+                      />
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <span>{c.name}</span>
+                        {isEditMode && (
+                          <>
+                            <button onClick={() => startEditColumn(c.id, c.name)} className="text-muted-foreground hover:text-foreground">
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button onClick={() => handleDeleteColumn(c.id, c.name)} className="text-destructive hover:text-destructive/80">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </TableHead>
                 ))}
                 {isEditMode && <TableHead className="w-10" />}
               </TableRow>
@@ -128,9 +213,29 @@ export default function CustomTabView({ tabId }: CustomTabViewProps) {
             <TableBody>
               {rows.map(row => (
                 <TableRow key={row.id}>
-                  {columns.map(c => (
-                    <TableCell key={c.id} className="text-right">{row.rowData[c.name] ?? ""}</TableCell>
-                  ))}
+                  {columns.map(c => {
+                    const isEditing = editingCell?.rowId === row.id && editingCell?.colName === c.name;
+                    return (
+                      <TableCell
+                        key={c.id}
+                        className="text-right cursor-pointer"
+                        onClick={() => !isEditing && startEditCell(row.id, c.name, row.rowData[c.name] ?? "")}
+                      >
+                        {isEditing ? (
+                          <Input
+                            value={editValue}
+                            onChange={e => setEditValue(e.target.value)}
+                            onBlur={commitEditCell}
+                            onKeyDown={e => e.key === "Enter" && commitEditCell()}
+                            className="h-7 text-sm"
+                            autoFocus
+                          />
+                        ) : (
+                          row.rowData[c.name] ?? ""
+                        )}
+                      </TableCell>
+                    );
+                  })}
                   {isEditMode && (
                     <TableCell>
                       <button onClick={() => deleteRow(row.id)} className="text-destructive hover:text-destructive/80">

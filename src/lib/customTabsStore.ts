@@ -143,5 +143,15 @@ export function useCustomTabData(tabId: string | null) {
     await fetchData();
   }, [tabId, columns, fetchData]);
 
-  return { columns, rows, setColumnsAndRows, addRow, updateRow, deleteRow, addColumn, refetch: fetchData };
+  const deleteColumn = useCallback(async (id: string) => {
+    await supabase.from("custom_tab_columns").delete().eq("id", id);
+    setColumns(prev => prev.filter(c => c.id !== id));
+  }, []);
+
+  const updateColumn = useCallback(async (id: string, name: string) => {
+    await supabase.from("custom_tab_columns").update({ name }).eq("id", id);
+    setColumns(prev => prev.map(c => c.id === id ? { ...c, name } : c));
+  }, []);
+
+  return { columns, rows, setColumnsAndRows, addRow, updateRow, deleteRow, addColumn, deleteColumn, updateColumn, refetch: fetchData };
 }
