@@ -7,25 +7,31 @@ import SoldiersView from "@/components/SoldiersView";
 import AIView from "@/components/AIView";
 import StatsView from "@/components/StatsView";
 import ThemeSettings from "@/components/ThemeSettings";
+import CustomTabView from "@/components/CustomTabView";
+import TabManager from "@/components/TabManager";
 import { useEvents, useTasks, useSoldiers } from "@/lib/store";
+import { useCustomTabs } from "@/lib/customTabsStore";
 import { useEditMode } from "@/lib/EditModeContext";
 
-type Tab = "calendar" | "tasks" | "soldiers" | "ai" | "stats";
+type BuiltinTab = "calendar" | "tasks" | "soldiers" | "ai" | "stats";
 
 export default function Index() {
-  const [activeTab, setActiveTab] = useState<Tab>("calendar");
+  const [activeTab, setActiveTab] = useState<string>("calendar");
   const { events, addEvent, deleteEvent, refetch: refetchEvents } = useEvents();
   const { tasks, addTask, toggleTask, deleteTask, refetch: refetchTasks } = useTasks();
   const { soldiers, addSoldier, deleteSoldier, refetch: refetchSoldiers } = useSoldiers();
+  const { tabs: customTabs, addTab, updateTab, deleteTab } = useCustomTabs();
+  const { isEditMode } = useEditMode();
 
   const handleAIDataChanged = useCallback(() => {
     refetchEvents();
     refetchTasks();
     refetchSoldiers();
   }, [refetchEvents, refetchTasks, refetchSoldiers]);
-  const { isEditMode } = useEditMode();
 
-  // Handle back button: if not on calendar tab, go to calendar first
+  // Filter custom tabs based on mode
+  const visibleCustomTabs = isEditMode ? customTabs : customTabs.filter(t => t.visibleInView);
+
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
       e.preventDefault();
@@ -33,27 +39,37 @@ export default function Index() {
         setActiveTab("calendar");
         window.history.pushState({ tab: "calendar" }, "");
       }
-      // If already on calendar, allow default back (exit app)
     };
-
-    // Push initial state
     window.history.pushState({ tab: activeTab }, "");
-
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, [activeTab]);
 
-  const handleTabChange = (tab: Tab) => {
+  const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     window.history.pushState({ tab }, "");
   };
+
+  const isBuiltin = (tab: string): tab is BuiltinTab =>
+    ["calendar", "tasks", "soldiers", "ai", "stats"].includes(tab);
+
+  const activeCustomTab = !isBuiltin(activeTab) ? activeTab : null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       <main className="flex-1 px-4 py-4 pb-24 max-w-lg mx-auto w-full">
-        {isEditMode && <ThemeSettings />}
-        {isEditMode && <div className="h-4" />}
+        {isEditMode && (
+          <div className="flex gap-2 mb-4 flex-wrap">
+            <ThemeSettings />
+            <TabManager
+              tabs={customTabs}
+              onAddTab={addTab}
+              onUpdateTab={updateTab}
+              onDeleteTab={deleteTab}
+            />
+          </div>
+        )}
         {activeTab === "calendar" && (
           <CalendarView events={events} onAddEvent={addEvent} onDeleteEvent={deleteEvent} />
         )}
@@ -65,8 +81,9 @@ export default function Index() {
         )}
         {activeTab === "ai" && <AIView context={{ events, tasks, soldiers }} onDataChanged={handleAIDataChanged} />}
         {activeTab === "stats" && <StatsView events={events} tasks={tasks} soldiers={soldiers} />}
+        {activeCustomTab && <CustomTabView tabId={activeCustomTab} />}
       </main>
-      <BottomNav active={activeTab} onTabChange={handleTabChange} />
+      <BottomNav active={activeTab} onTabChange={handleTabChange} customTabs={visibleCustomTabs} />
     </div>
   );
 }
