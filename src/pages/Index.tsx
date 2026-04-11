@@ -58,7 +58,7 @@ export default function Index() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
-      <main className="flex-1 px-4 py-4 pb-24 max-w-lg mx-auto w-full">
+      <main className="flex-1 px-4 py-4 pb-28 max-w-lg mx-auto w-full">
         {isEditMode && (
           <div className="flex gap-2 mb-4 flex-wrap">
             <ThemeSettings />
