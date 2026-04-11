@@ -29,7 +29,7 @@ export default function StatsView({ events, tasks, soldiers }: StatsViewProps) {
   return (
     <div className="flex flex-col gap-4 animate-fade-in-up">
       <div className="flex items-center gap-2 justify-end">
-        <h2 className="text-xl font-bold">שבצ״ק</h2>
+        <h2 className="text-xl font-bold">סיכום</h2>
         <BarChart3 className="w-5 h-5 text-primary" />
       </div>
 
