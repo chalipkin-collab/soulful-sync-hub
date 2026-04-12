@@ -21,6 +21,7 @@ const HEBREW_DAYS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 const TYPE_COLORS: Record<string, string> = {
   "מכינה": "bg-primary",
   "גיוס": "bg-blue-500",
+  "טירונות": "bg-orange-500",
   "חופשה": "bg-secondary",
   "תפילה": "bg-purple-500",
   "אימון": "bg-red-500",
