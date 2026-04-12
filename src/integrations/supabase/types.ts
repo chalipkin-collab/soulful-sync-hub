@@ -128,7 +128,9 @@ export type Database = {
           created_at: string
           date: string
           description: string | null
+          end_time: string | null
           id: string
+          location: string | null
           time: string | null
           title: string
           type: string
@@ -137,7 +139,9 @@ export type Database = {
           created_at?: string
           date: string
           description?: string | null
+          end_time?: string | null
           id?: string
+          location?: string | null
           time?: string | null
           title: string
           type: string
@@ -146,7 +150,9 @@ export type Database = {
           created_at?: string
           date?: string
           description?: string | null
+          end_time?: string | null
           id?: string
+          location?: string | null
           time?: string | null
           title?: string
           type?: string
