@@ -5,9 +5,11 @@ export interface SoldierEvent {
   id: string;
   title: string;
   date: string;
-  type: "מכינה" | "גיוס" | "חופשה" | "תפילה" | "אימון" | "כללי";
+  type: "מכינה" | "גיוס" | "חופשה" | "תפילה" | "אימון" | "כללי" | "טירונות";
   description?: string;
   time?: string;
+  endTime?: string;
+  location?: string;
 }
 
 export interface Task {
@@ -32,13 +34,15 @@ export function useEvents() {
   const fetchEvents = useCallback(async () => {
     const { data } = await supabase.from("events").select("*");
     if (data) {
-      setEvents(data.map(e => ({
+      setEvents(data.map((e: any) => ({
         id: e.id,
         title: e.title,
         date: e.date,
         type: e.type as SoldierEvent["type"],
         description: e.description ?? undefined,
         time: e.time ?? undefined,
+        endTime: e.end_time ?? undefined,
+        location: e.location ?? undefined,
       })));
     }
   }, []);
@@ -52,13 +56,17 @@ export function useEvents() {
       type: event.type,
       description: event.description ?? null,
       time: event.time ?? null,
-    }).select().single();
-    if (data) {
+      end_time: event.endTime ?? null,
+      location: event.location ?? null,
+    } as any).select().single();
+    if (data: any) {
       setEvents(prev => [...prev, {
         id: data.id, title: data.title, date: data.date,
         type: data.type as SoldierEvent["type"],
         description: data.description ?? undefined,
         time: data.time ?? undefined,
+        endTime: (data as any).end_time ?? undefined,
+        location: (data as any).location ?? undefined,
       }]);
     }
   }, []);
