@@ -18,7 +18,7 @@ const tools = [
         properties: {
           title: { type: "string", description: "כותרת האירוע" },
           date: { type: "string", description: "תאריך בפורמט YYYY-MM-DD" },
-          type: { type: "string", enum: ["מכינה", "גיוס", "חופשה", "תפילה", "אימון", "כללי"], description: "סוג האירוע" },
+          type: { type: "string", enum: ["מכינה", "גיוס", "חופשה", "תפילה", "אימון", "כללי", "טירונות"], description: "סוג האירוע" },
           description: { type: "string", description: "תיאור האירוע (אופציונלי)" },
           time: { type: "string", description: "שעה בפורמט HH:MM (אופציונלי)" },
         },
@@ -44,11 +44,67 @@ const tools = [
   },
 ];
 
+const extractionTool = {
+  type: "function",
+  function: {
+    name: "extract_items",
+    description: "חלץ פריטים רלוונטיים מתוכן: אירועים, משימות וחיילים. התעלם מתוכן לא רלוונטי.",
+    parameters: {
+      type: "object",
+      properties: {
+        summary: { type: "string", description: "סיכום קצר של מה שנמצא בתוכן" },
+        events: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              date: { type: "string", description: "YYYY-MM-DD" },
+              type: { type: "string", enum: ["מכינה", "גיוס", "חופשה", "תפילה", "אימון", "כללי", "טירונות"] },
+              description: { type: "string" },
+              time: { type: "string", description: "HH:MM" },
+              endTime: { type: "string", description: "HH:MM" },
+              location: { type: "string" },
+            },
+            required: ["title", "date", "type"],
+          },
+        },
+        tasks: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              dueDate: { type: "string", description: "YYYY-MM-DD" },
+              priority: { type: "string", enum: ["דחוף", "בינוני", "רגיל"] },
+            },
+            required: ["title", "dueDate", "priority"],
+          },
+        },
+        soldiers: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              unit: { type: "string" },
+              status: { type: "string", enum: ["פעיל", "חופשה", "מילואים"] },
+              phone: { type: "string" },
+            },
+            required: ["name", "unit", "status"],
+          },
+        },
+      },
+      required: ["summary", "events", "tasks", "soldiers"],
+    },
+  },
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, context } = await req.json();
+    const body = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -56,7 +112,96 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Build context string from app data
+    // EXTRACTION MODE - for file/voice content processing
+    if (body.mode === "extract") {
+      const today = new Date().toISOString().split("T")[0];
+      const extractionPrompt = `אתה מנתח תוכן צבאי. התאריך של היום: ${today}.
+נתח את התוכן הבא וחלץ רק מידע רלוונטי לניהול צבאי:
+- אירועים (אימונים, גיוסים, חופשות, תפילות, מכינות וכו')
+- משימות לביצוע
+- מידע על חיילים (שם, יחידה, סטטוס)
+
+התעלם לחלוטין מתוכן לא רלוונטי כמו שיחות חולין, ברכות, בדיחות וכו'.
+אם לא נמצא מידע רלוונטי, החזר מערכים ריקים.
+אם לא צוין תאריך מדויק, השתמש בתאריך של היום או הערך את התאריך מהקשר.
+אם לא צוינה עדיפות למשימה, השתמש ב"רגיל".`;
+
+      const messages: any[] = [
+        { role: "system", content: extractionPrompt },
+      ];
+
+      // Handle different input types
+      if (body.text) {
+        messages.push({ role: "user", content: body.text });
+      } else if (body.file_base64 && body.file_mime_type) {
+        if (body.file_mime_type.startsWith("image/")) {
+          messages.push({
+            role: "user",
+            content: [
+              { type: "text", text: "נתח את התמונה הזו וחלץ מידע רלוונטי לניהול צבאי:" },
+              { type: "image_url", image_url: { url: `data:${body.file_mime_type};base64,${body.file_base64}` } },
+            ],
+          });
+        } else if (body.file_mime_type.startsWith("audio/")) {
+          // For audio, use Gemini's audio understanding
+          messages.push({
+            role: "user",
+            content: [
+              { type: "text", text: "תמלל את ההקלטה הזו בעברית וחלץ מידע רלוונטי לניהול צבאי:" },
+              { type: "image_url", image_url: { url: `data:${body.file_mime_type};base64,${body.file_base64}` } },
+            ],
+          });
+        }
+      }
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages,
+          tools: [extractionTool],
+          tool_choice: { type: "function", function: { name: "extract_items" } },
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const t = await response.text();
+        console.error("Extraction error:", response.status, t);
+        return new Response(JSON.stringify({ error: "שגיאה בניתוח התוכן" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const result = await response.json();
+      const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+
+      if (toolCall) {
+        try {
+          const extraction = JSON.parse(toolCall.function.arguments);
+          return new Response(JSON.stringify({ extraction }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        } catch {
+          return new Response(JSON.stringify({ content: "לא הצלחתי לנתח את התוכן." }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      return new Response(JSON.stringify({ content: result.choices?.[0]?.message?.content || "לא נמצא מידע רלוונטי." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // REGULAR CHAT MODE
+    const { messages, context } = body;
+
     let contextStr = "";
     if (context) {
       if (context.events?.length) {
@@ -99,7 +244,7 @@ serve(async (req) => {
           ...messages,
         ],
         tools,
-        stream: false, // First call non-streaming to handle tool calls
+        stream: false,
       }),
     });
 
@@ -125,7 +270,6 @@ serve(async (req) => {
     const choice = result.choices?.[0];
     const msg = choice?.message;
 
-    // Handle tool calls
     if (msg?.tool_calls?.length) {
       const toolResults: string[] = [];
 
@@ -160,7 +304,6 @@ serve(async (req) => {
         }
       }
 
-      // Make a follow-up call to get a natural response
       const followUpMessages = [
         { role: "system", content: systemPrompt },
         ...messages,
@@ -191,7 +334,6 @@ serve(async (req) => {
         });
       }
 
-      // Fallback: return tool results directly
       return new Response(JSON.stringify({ 
         content: toolResults.join("\n"),
         tool_actions: msg.tool_calls.map((tc: any) => tc.function.name),
@@ -200,8 +342,6 @@ serve(async (req) => {
       });
     }
 
-    // No tool calls - stream the response
-    // Re-do as streaming
     const streamResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
