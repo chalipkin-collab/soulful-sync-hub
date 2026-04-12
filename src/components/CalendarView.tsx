@@ -21,13 +21,14 @@ const HEBREW_DAYS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 const TYPE_COLORS: Record<string, string> = {
   "מכינה": "bg-primary",
   "גיוס": "bg-blue-500",
+  "טירונות": "bg-orange-500",
   "חופשה": "bg-secondary",
   "תפילה": "bg-purple-500",
   "אימון": "bg-red-500",
   "כללי": "bg-muted-foreground",
 };
 
-const EVENT_TYPES: SoldierEvent["type"][] = ["מכינה", "גיוס", "חופשה", "תפילה", "אימון", "כללי"];
+const EVENT_TYPES: SoldierEvent["type"][] = ["מכינה", "גיוס", "טירונות", "חופשה", "תפילה", "אימון", "כללי"];
 
 interface CalendarViewProps {
   events: SoldierEvent[];
@@ -41,7 +42,7 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent }: Cale
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [view, setView] = useState<"month" | "week">("month");
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [newEvent, setNewEvent] = useState({ title: "", type: "כללי" as SoldierEvent["type"], time: "" });
+  const [newEvent, setNewEvent] = useState({ title: "", type: "כללי" as SoldierEvent["type"], time: "", endTime: "", location: "", description: "" });
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -86,8 +87,11 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent }: Cale
       date: selectedDate,
       type: newEvent.type,
       time: newEvent.time || undefined,
+      endTime: newEvent.endTime || undefined,
+      location: newEvent.location.trim() || undefined,
+      description: newEvent.description.trim() || undefined,
     });
-    setNewEvent({ title: "", type: "כללי", time: "" });
+    setNewEvent({ title: "", type: "כללי", time: "", endTime: "", location: "", description: "" });
     setShowAddDialog(false);
   };
 
@@ -254,6 +258,27 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent }: Cale
               value={newEvent.time}
               onChange={e => setNewEvent(p => ({ ...p, time: e.target.value }))}
               className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+              placeholder="שעת התחלה"
+            />
+            <input
+              type="time"
+              value={newEvent.endTime}
+              onChange={e => setNewEvent(p => ({ ...p, endTime: e.target.value }))}
+              className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+              placeholder="שעת סיום"
+            />
+            <input
+              value={newEvent.location}
+              onChange={e => setNewEvent(p => ({ ...p, location: e.target.value }))}
+              placeholder="מיקום (אופציונלי)"
+              className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+            />
+            <textarea
+              value={newEvent.description}
+              onChange={e => setNewEvent(p => ({ ...p, description: e.target.value }))}
+              placeholder="תיאור מפורט (אופציונלי)"
+              rows={2}
+              className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary resize-none"
             />
             <div className="flex gap-1.5 flex-wrap justify-end">
               {EVENT_TYPES.map(t => (

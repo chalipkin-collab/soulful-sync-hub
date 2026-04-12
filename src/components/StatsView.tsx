@@ -1,5 +1,6 @@
 import { BarChart3, Users, CheckSquare, Calendar, TrendingUp } from "lucide-react";
 import type { SoldierEvent, Task, Soldier } from "@/lib/store";
+import WeeklyReport from "./WeeklyReport";
 
 interface StatsViewProps {
   events: SoldierEvent[];
@@ -75,6 +76,9 @@ export default function StatsView({ events, tasks, soldiers }: StatsViewProps) {
           {tasks.some(t => t.priority === "דחוף" && !t.completed) && " ⚠️ יש משימות דחופות שדורשות טיפול!"}
         </p>
       </div>
+
+      {/* Weekly Report */}
+      <WeeklyReport events={events} tasks={tasks} soldiers={soldiers} />
     </div>
   );
 }
