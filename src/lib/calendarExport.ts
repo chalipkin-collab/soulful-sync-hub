@@ -33,7 +33,7 @@ export function generateICS(event: SoldierEvent): string {
   const reminderDate = new Date(Number(year), Number(month) - 1, Number(day) - 1, 17, 0);
   const diffMinutes = Math.round((eventDate.getTime() - reminderDate.getTime()) / 60000);
 
-  const descParts = [event.type];
+  const descParts: string[] = [event.type];
   if (event.description) descParts.push(event.description);
   const descriptionText = descParts.join(" - ");
 
