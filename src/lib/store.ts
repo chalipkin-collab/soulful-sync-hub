@@ -59,7 +59,7 @@ export function useEvents() {
       end_time: event.endTime ?? null,
       location: event.location ?? null,
     } as any).select().single();
-    if (data: any) {
+    if (data) {
       setEvents(prev => [...prev, {
         id: data.id, title: data.title, date: data.date,
         type: data.type as SoldierEvent["type"],
