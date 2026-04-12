@@ -9,18 +9,20 @@ export function generateICS(event: SoldierEvent): string {
   if (event.time) {
     const [hours, minutes] = event.time.split(":");
     dtStart = `${year}${month}${day}T${hours}${minutes}00`;
-    // 1 hour duration
-    const endHour = String(Number(hours) + 1).padStart(2, "0");
-    dtEnd = `${year}${month}${day}T${endHour}${minutes}00`;
+    if (event.endTime) {
+      const [eh, em] = event.endTime.split(":");
+      dtEnd = `${year}${month}${day}T${eh}${em}00`;
+    } else {
+      const endHour = String(Number(hours) + 1).padStart(2, "0");
+      dtEnd = `${year}${month}${day}T${endHour}${minutes}00`;
+    }
   } else {
-    // All day event
     dtStart = `${year}${month}${day}`;
     const nextDay = new Date(Number(year), Number(month) - 1, Number(day) + 1);
     dtEnd = `${nextDay.getFullYear()}${String(nextDay.getMonth() + 1).padStart(2, "0")}${String(nextDay.getDate()).padStart(2, "0")}`;
   }
 
   // Reminder: day before at 17:00
-  // Calculate minutes before the event for the alarm
   const eventDate = new Date(Number(year), Number(month) - 1, Number(day));
   if (event.time) {
     const [h, m] = event.time.split(":");
@@ -31,6 +33,10 @@ export function generateICS(event: SoldierEvent): string {
   const reminderDate = new Date(Number(year), Number(month) - 1, Number(day) - 1, 17, 0);
   const diffMinutes = Math.round((eventDate.getTime() - reminderDate.getTime()) / 60000);
 
+  const descParts = [event.type];
+  if (event.description) descParts.push(event.description);
+  const descriptionText = descParts.join(" - ");
+
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -39,7 +45,14 @@ export function generateICS(event: SoldierEvent): string {
     event.time ? `DTSTART:${dtStart}` : `DTSTART;VALUE=DATE:${dtStart}`,
     event.time ? `DTEND:${dtEnd}` : `DTEND;VALUE=DATE:${dtEnd}`,
     `SUMMARY:${event.title}`,
-    `DESCRIPTION:${event.type}${event.description ? " - " + event.description : ""}`,
+    `DESCRIPTION:${descriptionText}`,
+  ];
+
+  if (event.location) {
+    lines.push(`LOCATION:${event.location}`);
+  }
+
+  lines.push(
     "BEGIN:VALARM",
     "TRIGGER:-PT" + diffMinutes + "M",
     "ACTION:DISPLAY",
@@ -48,7 +61,7 @@ export function generateICS(event: SoldierEvent): string {
     `UID:${event.id}@luzhayalim`,
     "END:VEVENT",
     "END:VCALENDAR",
-  ];
+  );
 
   return lines.join("\r\n");
 }
