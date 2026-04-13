@@ -1,7 +1,13 @@
 import { useState } from "react";
-import { CheckSquare, Plus, Trash2 } from "lucide-react";
+import { CheckSquare, Plus, Trash2, Pencil, X } from "lucide-react";
 import type { Task } from "@/lib/store";
 import { useEditMode } from "@/lib/EditModeContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const PRIORITY_STYLES: Record<string, { dot: string; label: string }> = {
   "דחוף": { dot: "bg-destructive", label: "text-destructive" },
@@ -14,14 +20,16 @@ interface TasksViewProps {
   onToggle: (id: string) => void;
   onAdd: (task: Omit<Task, "id">) => void;
   onDelete: (id: string) => void;
+  onUpdate?: (task: Task) => void;
 }
 
-export default function TasksView({ tasks, onToggle, onAdd, onDelete }: TasksViewProps) {
+export default function TasksView({ tasks, onToggle, onAdd, onDelete, onUpdate }: TasksViewProps) {
   const { isEditMode } = useEditMode();
   const [filter, setFilter] = useState<"all" | "open" | "urgent" | "done">("open");
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newPriority, setNewPriority] = useState<Task["priority"]>("רגיל");
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const filtered = tasks.filter(t => {
     if (filter === "open") return !t.completed;
@@ -42,6 +50,13 @@ export default function TasksView({ tasks, onToggle, onAdd, onDelete }: TasksVie
     });
     setNewTitle("");
     setShowAdd(false);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingTask && editingTask.title.trim()) {
+      onUpdate?.(editingTask);
+      setEditingTask(null);
+    }
   };
 
   return (
@@ -87,10 +102,10 @@ export default function TasksView({ tasks, onToggle, onAdd, onDelete }: TasksVie
             >
               {isEditMode && (
                 <button
-                  onClick={() => onDelete(task.id)}
-                  className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                  onClick={() => setEditingTask({ ...task })}
+                  className="text-muted-foreground hover:text-primary transition-colors p-1"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Pencil className="w-3.5 h-3.5" />
                 </button>
               )}
               <div className="flex-1 text-right">
@@ -107,18 +122,16 @@ export default function TasksView({ tasks, onToggle, onAdd, onDelete }: TasksVie
                   </span>
                 </div>
               </div>
-              {isEditMode && (
-                <button
-                  onClick={() => onToggle(task.id)}
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-                    task.completed
-                      ? "bg-primary border-primary text-primary-foreground"
-                      : "border-muted-foreground hover:border-primary"
-                  }`}
-                >
-                  {task.completed && <span className="text-xs">✓</span>}
-                </button>
-              )}
+              <button
+                onClick={() => onToggle(task.id)}
+                className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                  task.completed
+                    ? "bg-primary border-primary text-primary-foreground"
+                    : "border-muted-foreground hover:border-primary"
+                }`}
+              >
+                {task.completed && <span className="text-xs">✓</span>}
+              </button>
             </div>
           );
         })}
@@ -168,6 +181,59 @@ export default function TasksView({ tasks, onToggle, onAdd, onDelete }: TasksVie
           </button>
         )
       )}
+
+      {/* Edit Task Dialog */}
+      <Dialog open={!!editingTask} onOpenChange={(open) => !open && setEditingTask(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-right">עריכת משימה</DialogTitle>
+          </DialogHeader>
+          {editingTask && (
+            <div className="flex flex-col gap-3">
+              <input
+                value={editingTask.title}
+                onChange={e => setEditingTask(p => p ? { ...p, title: e.target.value } : p)}
+                placeholder="שם המשימה..."
+                className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+                autoFocus
+              />
+              <input
+                type="date"
+                value={editingTask.dueDate}
+                onChange={e => setEditingTask(p => p ? { ...p, dueDate: e.target.value } : p)}
+                className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+              />
+              <div className="flex gap-2 justify-end">
+                {(["רגיל", "בינוני", "דחוף"] as const).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setEditingTask(prev => prev ? { ...prev, priority: p } : prev)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                      editingTask.priority === p ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { onDelete(editingTask.id); setEditingTask(null); }}
+                  className="px-3 py-2 rounded-lg bg-destructive/10 text-destructive text-sm hover:bg-destructive/20 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground font-medium text-sm"
+                >
+                  שמור שינויים
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

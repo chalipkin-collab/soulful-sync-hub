@@ -133,12 +133,22 @@ export function useTasks() {
     }
   }, []);
 
+  const updateTask = useCallback(async (task: Task) => {
+    await supabase.from("tasks").update({
+      title: task.title,
+      due_date: task.dueDate,
+      priority: task.priority,
+      completed: task.completed,
+    }).eq("id", task.id);
+    setTasks(prev => prev.map(t => t.id === task.id ? task : t));
+  }, []);
+
   const deleteTask = useCallback(async (id: string) => {
     await supabase.from("tasks").delete().eq("id", id);
     setTasks(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  return { tasks, addTask, toggleTask, deleteTask, refetch: fetchTasks };
+  return { tasks, addTask, toggleTask, updateTask, deleteTask, refetch: fetchTasks };
 }
 
 export function useSoldiers() {
