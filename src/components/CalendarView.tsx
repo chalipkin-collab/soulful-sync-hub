@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
-import { ChevronRight, ChevronLeft, Clock, Plus, Trash2, CalendarPlus } from "lucide-react";
+import { ChevronRight, ChevronLeft, Clock, Plus, CalendarPlus } from "lucide-react";
 import { downloadICS } from "@/lib/calendarExport";
 import type { SoldierEvent } from "@/lib/store";
 import { useEditMode } from "@/lib/EditModeContext";
+import EventDetailDialog from "./EventDetailDialog";
 import {
   Dialog,
   DialogContent,
@@ -34,14 +35,16 @@ interface CalendarViewProps {
   events: SoldierEvent[];
   onAddEvent?: (event: Omit<SoldierEvent, "id">) => void;
   onDeleteEvent?: (id: string) => void;
+  onUpdateEvent?: (event: SoldierEvent) => void;
 }
 
-export default function CalendarView({ events, onAddEvent, onDeleteEvent }: CalendarViewProps) {
+export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpdateEvent }: CalendarViewProps) {
   const { isEditMode } = useEditMode();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [view, setView] = useState<"month" | "week">("month");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [detailEvent, setDetailEvent] = useState<SoldierEvent | null>(null);
   const [newEvent, setNewEvent] = useState({ title: "", type: "כללי" as SoldierEvent["type"], time: "", endTime: "", location: "", description: "" });
 
   const year = currentDate.getFullYear();
