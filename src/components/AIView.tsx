@@ -34,6 +34,24 @@ const GREETING: Message = {
   text: "שלום! אני העוזר החכם שלך 🪖\nאני מכיר את כל האירועים, המשימות והחיילים שלך. אני גם יכול להוסיף אירועים ומשימות חדשים!\n\n🎤 אפשר לדבר אליי בקול\n📎 אפשר להעלות קובץ טקסט או תמונה\n\nמה תרצה לעשות?",
 };
 
+function formatExtractionForHistory(data: ExtractionResult): string {
+  const parts: string[] = [];
+  if (data.summary) parts.push(data.summary);
+  if (data.events.length) {
+    parts.push(`**אירועים (${data.events.length}):**`);
+    data.events.forEach(e => parts.push(`• ${e.title} - ${e.date}${e.time ? ` ${e.time}` : ""} (${e.type})`));
+  }
+  if (data.tasks.length) {
+    parts.push(`**משימות (${data.tasks.length}):**`);
+    data.tasks.forEach(t => parts.push(`• ${t.title} - יעד: ${t.dueDate} (${t.priority})`));
+  }
+  if (data.soldiers.length) {
+    parts.push(`**חיילים (${data.soldiers.length}):**`);
+    data.soldiers.forEach(s => parts.push(`• ${s.name} - ${s.unit} (${s.status})`));
+  }
+  return parts.join("\n");
+}
+
 export default function AIView({ context, onDataChanged }: AIViewProps) {
   const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [input, setInput] = useState("");
@@ -202,12 +220,14 @@ export default function AIView({ context, onDataChanged }: AIViewProps) {
       
       if (result.extraction) {
         setPendingExtraction(result.extraction);
+        const extractionText = formatExtractionForHistory(result.extraction);
         const aiMsg: Message = {
           id: (Date.now() + 1).toString(),
           sender: "ai",
           text: "📋 ניתחתי את התוכן. בדוק את הפריטים למטה ואשר מה לשמור:",
         };
         setMessages(prev => [...prev, aiMsg]);
+        persistMessage("assistant", `📋 ניתוח תוכן:\n${extractionText}`);
       } else {
         const aiMsg: Message = {
           id: (Date.now() + 1).toString(),
@@ -229,6 +249,10 @@ export default function AIView({ context, onDataChanged }: AIViewProps) {
 
   // Handle extraction confirmation
   const handleConfirmExtraction = useCallback(async (data: ExtractionResult) => {
+    // Save extraction summary to chat history before confirming
+    const extractionSummary = formatExtractionForHistory(data);
+    persistMessage("assistant", extractionSummary);
+
     setPendingExtraction(null);
     setIsLoading(true);
 

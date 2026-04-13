@@ -71,12 +71,25 @@ export function useEvents() {
     }
   }, []);
 
+  const updateEvent = useCallback(async (event: SoldierEvent) => {
+    await supabase.from("events").update({
+      title: event.title,
+      date: event.date,
+      type: event.type,
+      description: event.description ?? null,
+      time: event.time ?? null,
+      end_time: event.endTime ?? null,
+      location: event.location ?? null,
+    } as any).eq("id", event.id);
+    setEvents(prev => prev.map(e => e.id === event.id ? event : e));
+  }, []);
+
   const deleteEvent = useCallback(async (id: string) => {
     await supabase.from("events").delete().eq("id", id);
     setEvents(prev => prev.filter(e => e.id !== id));
   }, []);
 
-  return { events, addEvent, deleteEvent, refetch: fetchEvents };
+  return { events, addEvent, updateEvent, deleteEvent, refetch: fetchEvents };
 }
 
 export function useTasks() {
