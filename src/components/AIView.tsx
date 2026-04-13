@@ -94,46 +94,66 @@ export default function AIView({ context, onDataChanged }: AIViewProps) {
     setMessages([GREETING]);
   }, []);
 
-  // Voice recording via Web Speech API
+  // WhatsApp-style voice recording using MediaRecorder
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
   const toggleRecording = useCallback(() => {
     if (isRecording) {
-      recognitionRef.current?.stop();
+      // Stop recording - don't send yet, wait for send button
+      mediaRecorderRef.current?.stop();
       setIsRecording(false);
       return;
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("הדפדפן שלך לא תומך בזיהוי קולי. נסה Chrome.");
-      return;
-    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+      const mediaRecorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = "he-IL";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.continuous = false;
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+      };
 
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      if (transcript) {
-        handleSend(transcript);
-      }
-      setIsRecording(false);
-    };
-
-    recognition.onerror = () => {
-      setIsRecording(false);
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-    setIsRecording(true);
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.start();
+      setIsRecording(true);
+    }).catch(() => {
+      alert("לא ניתן לגשת למיקרופון. בדוק הרשאות.");
+    });
   }, [isRecording]);
+
+  const sendRecording = useCallback(async () => {
+    if (audioChunksRef.current.length === 0) return;
+    
+    const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+    audioChunksRef.current = [];
+    
+    const userMsg: Message = { id: Date.now().toString(), sender: "user", text: "🎤 הקלטה קולית" };
+    setMessages(prev => [...prev, userMsg]);
+    persistMessage("user", "🎤 הקלטה קולית");
+    setIsLoading(true);
+
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
+      });
+
+      await processExtraction("🎤 הקלטה קולית", undefined, base64, "audio/webm");
+    } catch (err) {
+      console.error("Voice processing error:", err);
+      const errMsg: Message = { id: (Date.now() + 1).toString(), sender: "ai", text: "שגיאה בעיבוד ההקלטה, נסה שוב." };
+      setMessages(prev => [...prev, errMsg]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [persistMessage]);
 
   // File upload handler
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -484,7 +504,20 @@ export default function AIView({ context, onDataChanged }: AIViewProps) {
       />
 
       <div className="flex gap-2 items-center">
-        <button onClick={() => handleSend()} disabled={isLoading || !input.trim()} className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-50">
+        <button
+          onClick={() => {
+            if (isRecording) {
+              // Stop and send recording
+              mediaRecorderRef.current?.stop();
+              setIsRecording(false);
+              setTimeout(() => sendRecording(), 300);
+            } else {
+              handleSend();
+            }
+          }}
+          disabled={isLoading || (!input.trim() && !isRecording)}
+          className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-50"
+        >
           <Send className="w-4 h-4" />
         </button>
         <button
@@ -507,7 +540,7 @@ export default function AIView({ context, onDataChanged }: AIViewProps) {
         >
           <Paperclip className="w-4 h-4" />
         </button>
-        <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSend()} placeholder="שאל אותי משהו..." disabled={isLoading} className="flex-1 bg-muted rounded-full px-4 py-2.5 text-sm text-right outline-none focus:ring-1 focus:ring-primary disabled:opacity-50" />
+        <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSend()} placeholder={isRecording ? "🎤 מקליט..." : "שאל אותי משהו..."} disabled={isLoading || isRecording} className="flex-1 bg-muted rounded-full px-4 py-2.5 text-sm text-right outline-none focus:ring-1 focus:ring-primary disabled:opacity-50" />
       </div>
     </div>
   );

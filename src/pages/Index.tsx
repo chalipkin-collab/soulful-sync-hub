@@ -18,7 +18,7 @@ type BuiltinTab = "calendar" | "tasks" | "soldiers" | "ai" | "stats";
 export default function Index() {
   const [activeTab, setActiveTab] = useState<string>("calendar");
   const { events, addEvent, updateEvent, deleteEvent, refetch: refetchEvents } = useEvents();
-  const { tasks, addTask, toggleTask, deleteTask, refetch: refetchTasks } = useTasks();
+  const { tasks, addTask, toggleTask, updateTask, deleteTask, refetch: refetchTasks } = useTasks();
   const { soldiers, addSoldier, deleteSoldier, refetch: refetchSoldiers } = useSoldiers();
   const { tabs: customTabs, addTab, updateTab, deleteTab } = useCustomTabs();
   const { isEditMode } = useEditMode();
@@ -74,7 +74,7 @@ export default function Index() {
           <CalendarView events={events} onAddEvent={addEvent} onDeleteEvent={deleteEvent} onUpdateEvent={updateEvent} />
         )}
         {activeTab === "tasks" && (
-          <TasksView tasks={tasks} onToggle={toggleTask} onAdd={addTask} onDelete={deleteTask} />
+          <TasksView tasks={tasks} onToggle={toggleTask} onAdd={addTask} onDelete={deleteTask} onUpdate={updateTask} />
         )}
         {activeTab === "soldiers" && (
           <SoldiersView soldiers={soldiers} events={events} onAddSoldier={addSoldier} onDeleteSoldier={deleteSoldier} />
