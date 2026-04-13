@@ -193,19 +193,12 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
         ) : (
           <div className="flex flex-col gap-2">
             {selectedEvents.map((event, i) => (
-              <div
+              <button
                 key={event.id}
-                className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors animate-fade-in-up"
+                onClick={() => setDetailEvent(event)}
+                className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors animate-fade-in-up text-right w-full"
                 style={{ animationDelay: `${i * 80}ms` }}
               >
-                {isEditMode && (
-                  <button
-                    onClick={() => onDeleteEvent?.(event.id)}
-                    className="text-muted-foreground hover:text-destructive transition-colors p-1 mt-0.5"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
                 <div className="flex-shrink-0 mt-1">
                   <Clock className="w-4 h-4 text-muted-foreground" />
                 </div>
@@ -224,15 +217,8 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
                   <span className={`text-[10px] px-2 py-0.5 rounded-full text-primary-foreground font-medium ${TYPE_COLORS[event.type]}`}>
                     {event.type}
                   </span>
-                  <button
-                    onClick={() => downloadICS(event)}
-                    className="text-muted-foreground hover:text-primary transition-colors p-0.5"
-                    title="הוסף ללוח שנה עם תזכורת"
-                  >
-                    <CalendarPlus className="w-3.5 h-3.5" />
-                  </button>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -305,6 +291,15 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
           </div>
         </DialogContent>
       </Dialog>
+      {/* Event Detail Dialog */}
+      <EventDetailDialog
+        event={detailEvent}
+        open={!!detailEvent}
+        onClose={() => setDetailEvent(null)}
+        isEditMode={isEditMode}
+        onDelete={onDeleteEvent}
+        onUpdate={onUpdateEvent}
+      />
     </div>
   );
 }
