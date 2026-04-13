@@ -202,12 +202,14 @@ export default function AIView({ context, onDataChanged }: AIViewProps) {
       
       if (result.extraction) {
         setPendingExtraction(result.extraction);
+        const extractionText = formatExtractionForHistory(result.extraction);
         const aiMsg: Message = {
           id: (Date.now() + 1).toString(),
           sender: "ai",
           text: "📋 ניתחתי את התוכן. בדוק את הפריטים למטה ואשר מה לשמור:",
         };
         setMessages(prev => [...prev, aiMsg]);
+        persistMessage("assistant", `📋 ניתוח תוכן:\n${extractionText}`);
       } else {
         const aiMsg: Message = {
           id: (Date.now() + 1).toString(),
@@ -229,6 +231,10 @@ export default function AIView({ context, onDataChanged }: AIViewProps) {
 
   // Handle extraction confirmation
   const handleConfirmExtraction = useCallback(async (data: ExtractionResult) => {
+    // Save extraction summary to chat history before confirming
+    const extractionSummary = formatExtractionForHistory(data);
+    persistMessage("assistant", extractionSummary);
+
     setPendingExtraction(null);
     setIsLoading(true);
 
