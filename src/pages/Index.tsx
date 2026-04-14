@@ -29,7 +29,6 @@ export default function Index() {
     refetchSoldiers();
   }, [refetchEvents, refetchTasks, refetchSoldiers]);
 
-  // Filter custom tabs based on mode
   const visibleCustomTabs = isEditMode ? customTabs : customTabs.filter(t => t.visibleInView);
 
   useEffect(() => {
@@ -77,7 +76,14 @@ export default function Index() {
           <TasksView tasks={tasks} onToggle={toggleTask} onAdd={addTask} onDelete={deleteTask} onUpdate={updateTask} />
         )}
         {activeTab === "soldiers" && (
-          <SoldiersView soldiers={soldiers} events={events} onAddSoldier={addSoldier} onDeleteSoldier={deleteSoldier} />
+          <SoldiersView
+            soldiers={soldiers}
+            events={events}
+            onAddSoldier={addSoldier}
+            onDeleteSoldier={deleteSoldier}
+            onDeleteEvent={deleteEvent}
+            onUpdateEvent={updateEvent}
+          />
         )}
         {activeTab === "ai" && <AIView context={{ events, tasks, soldiers }} onDataChanged={handleAIDataChanged} />}
         {activeTab === "stats" && <StatsView events={events} tasks={tasks} soldiers={soldiers} />}

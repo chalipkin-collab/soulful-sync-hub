@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronRight, ChevronLeft, Clock, Plus, CalendarPlus } from "lucide-react";
-import { downloadICS } from "@/lib/calendarExport";
+import { ChevronRight, ChevronLeft, Clock, Plus } from "lucide-react";
 import type { SoldierEvent } from "@/lib/store";
 import { useEditMode } from "@/lib/EditModeContext";
 import EventDetailDialog from "./EventDetailDialog";
@@ -30,6 +29,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const EVENT_TYPES: SoldierEvent["type"][] = ["מכינה", "גיוס", "טירונות", "חופשה", "תפילה", "אימון", "כללי"];
+const EVENT_KINDS: SoldierEvent["eventKind"][] = ["חד פעמי", "פתיחה", "סיום"];
 
 interface CalendarViewProps {
   events: SoldierEvent[];
@@ -45,7 +45,11 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
   const [view, setView] = useState<"month" | "week">("month");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [detailEvent, setDetailEvent] = useState<SoldierEvent | null>(null);
-  const [newEvent, setNewEvent] = useState({ title: "", type: "כללי" as SoldierEvent["type"], time: "", endTime: "", location: "", description: "" });
+  const [newEvent, setNewEvent] = useState({
+    title: "", type: "כללי" as SoldierEvent["type"], time: "", endTime: "",
+    location: "", description: "", eventKind: "חד פעמי" as SoldierEvent["eventKind"],
+    endDate: "", plannedSoldiers: "", actualSoldiers: "", placementTargets: "", notes: "",
+  });
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -65,14 +69,16 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
     return map;
   }, [events]);
 
-  const upcomingEvents = useMemo(() => {
+  // All events in current month
+  const monthEvents = useMemo(() => {
+    const monthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
     return events
-      .filter(e => e.date >= todayStr)
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(0, 5);
-  }, [events, todayStr]);
+      .filter(e => e.date.startsWith(monthStr))
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || ""));
+  }, [events, year, month]);
 
-  const selectedEvents = selectedDate ? (eventsByDate[selectedDate] || []) : upcomingEvents;
+  // Selected date events + all month events
+  const selectedDayEvents = selectedDate ? (eventsByDate[selectedDate] || []) : [];
 
   const navigate = (dir: number) => {
     setCurrentDate(new Date(year, month + dir, 1));
@@ -93,8 +99,18 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
       endTime: newEvent.endTime || undefined,
       location: newEvent.location.trim() || undefined,
       description: newEvent.description.trim() || undefined,
+      eventKind: newEvent.eventKind,
+      endDate: newEvent.endDate || undefined,
+      plannedSoldiers: newEvent.plannedSoldiers ? Number(newEvent.plannedSoldiers) : undefined,
+      actualSoldiers: newEvent.actualSoldiers ? Number(newEvent.actualSoldiers) : undefined,
+      placementTargets: newEvent.placementTargets.trim() || undefined,
+      notes: newEvent.notes.trim() || undefined,
     });
-    setNewEvent({ title: "", type: "כללי", time: "", endTime: "", location: "", description: "" });
+    setNewEvent({
+      title: "", type: "כללי", time: "", endTime: "", location: "", description: "",
+      eventKind: "חד פעמי", endDate: "", plannedSoldiers: "", actualSoldiers: "",
+      placementTargets: "", notes: "",
+    });
     setShowAddDialog(false);
   };
 
@@ -172,27 +188,25 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
         </div>
       </div>
 
-      {/* Events List */}
-      <div className="glass-card p-4">
-        <div className="flex items-center justify-between mb-3">
-          {isEditMode && selectedDate && (
-            <button
-              onClick={() => setShowAddDialog(true)}
-              className="flex items-center gap-1 text-primary text-xs hover:text-primary/80 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              הוסף
-            </button>
-          )}
-          <h3 className="text-sm font-semibold text-muted-foreground text-right flex-1">
-            {selectedDate ? `אירועים ב-${selectedDate.split("-").reverse().join("/")}` : "אירועים קרובים"}
-          </h3>
-        </div>
-        {selectedEvents.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">אין אירועים</p>
-        ) : (
+      {/* Selected Day Events */}
+      {selectedDate && selectedDayEvents.length > 0 && (
+        <div className="glass-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            {isEditMode && (
+              <button
+                onClick={() => setShowAddDialog(true)}
+                className="flex items-center gap-1 text-primary text-xs hover:text-primary/80 transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                הוסף
+              </button>
+            )}
+            <h3 className="text-sm font-semibold text-muted-foreground text-right flex-1">
+              אירועים ב-{selectedDate.split("-").reverse().join("/")}
+            </h3>
+          </div>
           <div className="flex flex-col gap-2">
-            {selectedEvents.map((event, i) => (
+            {selectedDayEvents.map((event, i) => (
               <button
                 key={event.id}
                 onClick={() => setDetailEvent(event)}
@@ -205,19 +219,63 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
                 <div className="flex-1 text-right">
                   <p className="font-medium text-sm">{event.title}</p>
                   <div className="flex items-center gap-2 mt-1 justify-end">
+                    {event.time && <span className="text-xs text-muted-foreground">{event.time}</span>}
+                  </div>
+                </div>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full text-primary-foreground font-medium ${TYPE_COLORS[event.type]}`}>
+                  {event.type}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Add button when selected date has no events */}
+      {selectedDate && selectedDayEvents.length === 0 && isEditMode && (
+        <div className="glass-card p-4">
+          <p className="text-sm text-muted-foreground text-center mb-2">אין אירועים ב-{selectedDate.split("-").reverse().join("/")}</p>
+          <button
+            onClick={() => setShowAddDialog(true)}
+            className="w-full flex items-center justify-center gap-1 text-primary text-sm hover:text-primary/80 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            הוסף אירוע
+          </button>
+        </div>
+      )}
+
+      {/* All Month Events */}
+      <div className="glass-card p-4">
+        <h3 className="text-sm font-semibold text-muted-foreground text-right mb-3">
+          אירועי {HEBREW_MONTHS[month]}
+        </h3>
+        {monthEvents.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">אין אירועים החודש</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {monthEvents.map((event, i) => (
+              <button
+                key={event.id}
+                onClick={() => setDetailEvent(event)}
+                className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors animate-fade-in-up text-right w-full"
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                <div className="flex-shrink-0 mt-1">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="flex-1 text-right">
+                  <p className="font-medium text-sm">{event.title}</p>
+                  <div className="flex items-center gap-2 mt-1 justify-end">
                     <span className="text-xs text-muted-foreground">
                       {event.date.split("-").reverse().join("/")}
                     </span>
-                    {event.time && (
-                      <span className="text-xs text-muted-foreground">{event.time}</span>
-                    )}
+                    {event.time && <span className="text-xs text-muted-foreground">{event.time}</span>}
                   </div>
                 </div>
-                <div className="flex flex-col items-center gap-1">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full text-primary-foreground font-medium ${TYPE_COLORS[event.type]}`}>
-                    {event.type}
-                  </span>
-                </div>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full text-primary-foreground font-medium ${TYPE_COLORS[event.type]}`}>
+                  {event.type}
+                </span>
               </button>
             ))}
           </div>
@@ -226,7 +284,7 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
 
       {/* Add Event Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="max-w-xs">
+        <DialogContent className="max-w-xs max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-right">הוסף אירוע</DialogTitle>
             <DialogDescription className="text-right">
@@ -242,37 +300,109 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
               autoFocus
               onKeyDown={e => e.key === "Enter" && handleAddEvent()}
             />
-            <input
-              type="time"
-              value={newEvent.time}
-              onChange={e => setNewEvent(p => ({ ...p, time: e.target.value }))}
-              className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
-              placeholder="שעת התחלה"
-            />
-            <input
-              type="time"
-              value={newEvent.endTime}
-              onChange={e => setNewEvent(p => ({ ...p, endTime: e.target.value }))}
-              className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
-              placeholder="שעת סיום"
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="time"
+                value={newEvent.time}
+                onChange={e => setNewEvent(p => ({ ...p, time: e.target.value }))}
+                className="bg-muted rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                placeholder="שעת התחלה"
+              />
+              <input
+                type="time"
+                value={newEvent.endTime}
+                onChange={e => setNewEvent(p => ({ ...p, endTime: e.target.value }))}
+                className="bg-muted rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                placeholder="שעת סיום"
+              />
+            </div>
             <input
               value={newEvent.location}
               onChange={e => setNewEvent(p => ({ ...p, location: e.target.value }))}
               placeholder="מיקום (אופציונלי)"
               className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
             />
+
+            {/* Event Kind */}
+            <div>
+              <label className="text-xs text-muted-foreground block text-right mb-1">סוג אירוע</label>
+              <div className="flex gap-1.5 flex-wrap justify-end">
+                {EVENT_KINDS.map(k => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setNewEvent(p => ({ ...p, eventKind: k }))}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                      newEvent.eventKind === k ? "bg-secondary text-secondary-foreground" : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {k}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* End Date for opening/closing */}
+            {(newEvent.eventKind === "פתיחה" || newEvent.eventKind === "סיום") && (
+              <div>
+                <label className="text-xs text-muted-foreground block text-right mb-1">
+                  {newEvent.eventKind === "פתיחה" ? "תאריך סיום" : "תאריך פתיחה"}
+                </label>
+                <input
+                  type="date"
+                  value={newEvent.endDate}
+                  onChange={e => setNewEvent(p => ({ ...p, endDate: e.target.value }))}
+                  className="w-full bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            )}
+
+            {/* Soldier counts */}
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="number"
+                value={newEvent.plannedSoldiers}
+                onChange={e => setNewEvent(p => ({ ...p, plannedSoldiers: e.target.value }))}
+                placeholder="חיילים מתוכנן"
+                className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+              />
+              <input
+                type="number"
+                value={newEvent.actualSoldiers}
+                onChange={e => setNewEvent(p => ({ ...p, actualSoldiers: e.target.value }))}
+                placeholder="חיילים מעודכן"
+                className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <input
+              value={newEvent.placementTargets}
+              onChange={e => setNewEvent(p => ({ ...p, placementTargets: e.target.value }))}
+              placeholder="יעדי שיבוץ מתוכננים (אופציונלי)"
+              className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+            />
+
             <textarea
               value={newEvent.description}
               onChange={e => setNewEvent(p => ({ ...p, description: e.target.value }))}
-              placeholder="תיאור מפורט (אופציונלי)"
+              placeholder="תוכן / פרטים (אופציונלי)"
               rows={2}
               className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary resize-none"
             />
+
+            <textarea
+              value={newEvent.notes}
+              onChange={e => setNewEvent(p => ({ ...p, notes: e.target.value }))}
+              placeholder="הערות (אופציונלי)"
+              rows={2}
+              className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary resize-none"
+            />
+
             <div className="flex gap-1.5 flex-wrap justify-end">
               {EVENT_TYPES.map(t => (
                 <button
                   key={t}
+                  type="button"
                   onClick={() => setNewEvent(p => ({ ...p, type: t }))}
                   className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
                     newEvent.type === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"

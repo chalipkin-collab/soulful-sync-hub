@@ -10,6 +10,13 @@ export interface SoldierEvent {
   time?: string;
   endTime?: string;
   location?: string;
+  eventKind?: "פתיחה" | "סיום" | "חד פעמי";
+  linkedEventId?: string;
+  endDate?: string;
+  plannedSoldiers?: number;
+  actualSoldiers?: number;
+  placementTargets?: string;
+  notes?: string;
 }
 
 export interface Task {
@@ -28,59 +35,85 @@ export interface Soldier {
   phone?: string;
 }
 
+function mapEventRow(e: any): SoldierEvent {
+  return {
+    id: e.id,
+    title: e.title,
+    date: e.date,
+    type: e.type as SoldierEvent["type"],
+    description: e.description ?? undefined,
+    time: e.time ?? undefined,
+    endTime: e.end_time ?? undefined,
+    location: e.location ?? undefined,
+    eventKind: e.event_kind ?? undefined,
+    linkedEventId: e.linked_event_id ?? undefined,
+    endDate: e.end_date ?? undefined,
+    plannedSoldiers: e.planned_soldiers ?? undefined,
+    actualSoldiers: e.actual_soldiers ?? undefined,
+    placementTargets: e.placement_targets ?? undefined,
+    notes: e.notes ?? undefined,
+  };
+}
+
+function eventToRow(event: Omit<SoldierEvent, "id">) {
+  return {
+    title: event.title,
+    date: event.date,
+    type: event.type,
+    description: event.description ?? null,
+    time: event.time ?? null,
+    end_time: event.endTime ?? null,
+    location: event.location ?? null,
+    event_kind: event.eventKind ?? "חד פעמי",
+    linked_event_id: event.linkedEventId ?? null,
+    end_date: event.endDate ?? null,
+    planned_soldiers: event.plannedSoldiers ?? null,
+    actual_soldiers: event.actualSoldiers ?? null,
+    placement_targets: event.placementTargets ?? null,
+    notes: event.notes ?? null,
+  };
+}
+
 export function useEvents() {
   const [events, setEvents] = useState<SoldierEvent[]>([]);
 
   const fetchEvents = useCallback(async () => {
     const { data } = await supabase.from("events").select("*");
-    if (data) {
-      setEvents(data.map((e: any) => ({
-        id: e.id,
-        title: e.title,
-        date: e.date,
-        type: e.type as SoldierEvent["type"],
-        description: e.description ?? undefined,
-        time: e.time ?? undefined,
-        endTime: e.end_time ?? undefined,
-        location: e.location ?? undefined,
-      })));
-    }
+    if (data) setEvents(data.map(mapEventRow));
   }, []);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
   const addEvent = useCallback(async (event: Omit<SoldierEvent, "id">) => {
-    const { data } = await supabase.from("events").insert({
-      title: event.title,
-      date: event.date,
-      type: event.type,
-      description: event.description ?? null,
-      time: event.time ?? null,
-      end_time: event.endTime ?? null,
-      location: event.location ?? null,
-    } as any).select().single();
+    const { data } = await supabase.from("events").insert(eventToRow(event) as any).select().single();
     if (data) {
-      setEvents(prev => [...prev, {
-        id: data.id, title: data.title, date: data.date,
-        type: data.type as SoldierEvent["type"],
-        description: data.description ?? undefined,
-        time: data.time ?? undefined,
-        endTime: (data as any).end_time ?? undefined,
-        location: (data as any).location ?? undefined,
-      }]);
+      const newEvent = mapEventRow(data);
+      setEvents(prev => [...prev, newEvent]);
+
+      // If opening event with endDate, create linked closing event
+      if (event.eventKind === "פתיחה" && event.endDate) {
+        const { data: closingData } = await supabase.from("events").insert({
+          ...eventToRow({
+            ...event,
+            title: event.title.replace("פתיחת", "סיום").replace("תחילת", "סיום"),
+            date: event.endDate,
+            eventKind: "סיום",
+            endDate: event.date,
+          }),
+          linked_event_id: newEvent.id,
+        } as any).select().single();
+        if (closingData) {
+          // Link back
+          await supabase.from("events").update({ linked_event_id: closingData.id } as any).eq("id", newEvent.id);
+          setEvents(prev => prev.map(e => e.id === newEvent.id ? { ...e, linkedEventId: closingData.id } : e).concat(mapEventRow(closingData)));
+        }
+      }
+      return newEvent;
     }
   }, []);
 
   const updateEvent = useCallback(async (event: SoldierEvent) => {
-    await supabase.from("events").update({
-      title: event.title,
-      date: event.date,
-      type: event.type,
-      description: event.description ?? null,
-      time: event.time ?? null,
-      end_time: event.endTime ?? null,
-      location: event.location ?? null,
-    } as any).eq("id", event.id);
+    await supabase.from("events").update(eventToRow(event) as any).eq("id", event.id);
     setEvents(prev => prev.map(e => e.id === event.id ? event : e));
   }, []);
 
