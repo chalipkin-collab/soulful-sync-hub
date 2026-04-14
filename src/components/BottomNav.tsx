@@ -14,7 +14,7 @@ interface BottomNavProps {
 const builtinTabs: { id: string; label: string; icon: typeof Calendar }[] = [
   { id: "stats", label: "סיכום", icon: BarChart3 },
   { id: "ai", label: "AI", icon: Sparkles },
-  { id: "soldiers", label: "חיילים", icon: Users },
+  { id: "soldiers", label: "לוז", icon: Calendar },
   { id: "tasks", label: "משימות", icon: CheckSquare },
   { id: "calendar", label: "לוח שנה", icon: Calendar },
 ];
@@ -86,7 +86,6 @@ export default function BottomNav({ active, onTabChange, customTabs = [], onRena
           </button>
         ))}
       </div>
-      {/* Spacer to push Lovable badge below tabs */}
       <div className="h-2 safe-area-bottom" />
     </nav>
   );

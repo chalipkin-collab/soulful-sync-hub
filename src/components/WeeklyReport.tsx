@@ -8,82 +8,85 @@ interface WeeklyReportProps {
   soldiers: Soldier[];
 }
 
+type ReportType = "weekly" | "monthly";
+
 export default function WeeklyReport({ events, tasks, soldiers }: WeeklyReportProps) {
   const [showReport, setShowReport] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [reportType, setReportType] = useState<ReportType>("weekly");
 
   const today = new Date();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay());
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  const startOfNextWeek = new Date(endOfWeek);
-  startOfNextWeek.setDate(endOfWeek.getDate() + 1);
-  const endOfNextWeek = new Date(startOfNextWeek);
-  endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
-
-  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const fmtHeb = (d: string) => d.split("-").reverse().join("/");
-
-  const thisWeekStr = fmt(startOfWeek);
-  const endWeekStr = fmt(endOfWeek);
-  const nextWeekStartStr = fmt(startOfNextWeek);
-  const nextWeekEndStr = fmt(endOfNextWeek);
-
-  const thisWeekEvents = events.filter(e => e.date >= thisWeekStr && e.date <= endWeekStr);
-  const nextWeekEvents = events.filter(e => e.date >= nextWeekStartStr && e.date <= nextWeekEndStr);
-  const completedThisWeek = tasks.filter(t => t.completed);
-  const urgentOpen = tasks.filter(t => !t.completed && t.priority === "דחוף");
-  const activeSoldiers = soldiers.filter(s => s.status === "פעיל");
+  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   const generateReport = () => {
     const lines: string[] = [];
-    lines.push(`📋 *דוח שבועי - ${fmtHeb(thisWeekStr)} עד ${fmtHeb(endWeekStr)}*`);
-    lines.push("");
+    const activeSoldiers = soldiers.filter(s => s.status === "פעיל");
+    const urgentOpen = tasks.filter(t => !t.completed && t.priority === "דחוף");
+    const completedTasks = tasks.filter(t => t.completed);
 
-    lines.push("📅 *אירועים שהתקיימו השבוע:*");
-    if (thisWeekEvents.length === 0) {
-      lines.push("  אין אירועים השבוע");
+    if (reportType === "weekly") {
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay());
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      const startOfNextWeek = new Date(endOfWeek);
+      startOfNextWeek.setDate(endOfWeek.getDate() + 1);
+      const endOfNextWeek = new Date(startOfNextWeek);
+      endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
+
+      const thisWeekStr = fmt(startOfWeek);
+      const endWeekStr = fmt(endOfWeek);
+      const nextWeekStartStr = fmt(startOfNextWeek);
+      const nextWeekEndStr = fmt(endOfNextWeek);
+
+      const thisWeekEvents = events.filter(e => e.date >= thisWeekStr && e.date <= endWeekStr);
+      const nextWeekEvents = events.filter(e => e.date >= nextWeekStartStr && e.date <= nextWeekEndStr);
+
+      lines.push(`📋 *דוח שבועי - ${fmtHeb(thisWeekStr)} עד ${fmtHeb(endWeekStr)}*`);
+      lines.push("");
+      lines.push("📅 *אירועים שהתקיימו השבוע:*");
+      if (thisWeekEvents.length === 0) lines.push("  אין אירועים השבוע");
+      else thisWeekEvents.forEach(e => {
+        const time = e.time ? ` (${e.time})` : "";
+        const loc = e.location ? ` | ${e.location}` : "";
+        lines.push(`  • ${e.title} - ${fmtHeb(e.date)}${time}${loc} [${e.type}]`);
+      });
+      lines.push("");
+      lines.push("🔜 *אירועים קרובים לשבוע הבא:*");
+      if (nextWeekEvents.length === 0) lines.push("  אין אירועים לשבוע הבא");
+      else nextWeekEvents.forEach(e => {
+        const time = e.time ? ` (${e.time})` : "";
+        lines.push(`  • ${e.title} - ${fmtHeb(e.date)}${time} [${e.type}]`);
+      });
     } else {
-      thisWeekEvents.forEach(e => {
+      const monthStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
+      const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const monthEnd = fmt(nextMonth);
+      const HEBREW_MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
+
+      const monthEvents = events.filter(e => e.date >= monthStart && e.date <= monthEnd);
+
+      lines.push(`📋 *דוח חודשי - ${HEBREW_MONTHS[today.getMonth()]} ${today.getFullYear()}*`);
+      lines.push("");
+      lines.push("📅 *אירועי החודש:*");
+      if (monthEvents.length === 0) lines.push("  אין אירועים החודש");
+      else monthEvents.sort((a, b) => a.date.localeCompare(b.date)).forEach(e => {
         const time = e.time ? ` (${e.time})` : "";
         const loc = e.location ? ` | ${e.location}` : "";
         lines.push(`  • ${e.title} - ${fmtHeb(e.date)}${time}${loc} [${e.type}]`);
       });
     }
-    lines.push("");
 
-    lines.push("🔜 *אירועים קרובים לשבוע הבא:*");
-    if (nextWeekEvents.length === 0) {
-      lines.push("  אין אירועים לשבוע הבא");
-    } else {
-      nextWeekEvents.forEach(e => {
-        const time = e.time ? ` (${e.time})` : "";
-        lines.push(`  • ${e.title} - ${fmtHeb(e.date)}${time} [${e.type}]`);
-      });
-    }
     lines.push("");
-
     lines.push("✅ *משימות שהושלמו:*");
-    if (completedThisWeek.length === 0) {
-      lines.push("  אין משימות שהושלמו");
-    } else {
-      completedThisWeek.forEach(t => {
-        lines.push(`  • ${t.title}`);
-      });
-    }
+    if (completedTasks.length === 0) lines.push("  אין משימות שהושלמו");
+    else completedTasks.forEach(t => lines.push(`  • ${t.title}`));
     lines.push("");
-
     lines.push("⚠️ *משימות פתוחות דחופות:*");
-    if (urgentOpen.length === 0) {
-      lines.push("  אין משימות דחופות פתוחות 🎉");
-    } else {
-      urgentOpen.forEach(t => {
-        lines.push(`  • ${t.title} - עד ${fmtHeb(t.dueDate)}`);
-      });
-    }
+    if (urgentOpen.length === 0) lines.push("  אין משימות דחופות פתוחות 🎉");
+    else urgentOpen.forEach(t => lines.push(`  • ${t.title} - עד ${fmtHeb(t.dueDate)}`));
     lines.push("");
-
     lines.push(`👥 *חיילים פעילים:* ${activeSoldiers.length} מתוך ${soldiers.length}`);
 
     return lines.join("\n");
@@ -99,13 +102,22 @@ export default function WeeklyReport({ events, tasks, soldiers }: WeeklyReportPr
 
   if (!showReport) {
     return (
-      <button
-        onClick={() => setShowReport(true)}
-        className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-      >
-        <FileText className="w-4 h-4" />
-        צור דוח שבועי
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={() => { setReportType("weekly"); setShowReport(true); }}
+          className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+        >
+          <FileText className="w-4 h-4" />
+          דוח שבועי
+        </button>
+        <button
+          onClick={() => { setReportType("monthly"); setShowReport(true); }}
+          className="flex-1 py-3 rounded-xl bg-secondary text-secondary-foreground font-medium text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+        >
+          <FileText className="w-4 h-4" />
+          דוח חודשי
+        </button>
+      </div>
     );
   }
 
@@ -115,7 +127,20 @@ export default function WeeklyReport({ events, tasks, soldiers }: WeeklyReportPr
         <button onClick={() => setShowReport(false)} className="p-1 hover:bg-muted rounded-lg transition-colors">
           <X className="w-4 h-4" />
         </button>
-        <h3 className="text-sm font-semibold">דוח שבועי</h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setReportType("weekly")}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${reportType === "weekly" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+          >
+            שבועי
+          </button>
+          <button
+            onClick={() => setReportType("monthly")}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${reportType === "monthly" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+          >
+            חודשי
+          </button>
+        </div>
       </div>
       <pre className="text-sm text-right whitespace-pre-wrap leading-relaxed bg-muted/50 rounded-lg p-3 max-h-80 overflow-y-auto" dir="rtl">
         {report}

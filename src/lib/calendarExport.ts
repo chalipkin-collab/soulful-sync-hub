@@ -33,9 +33,16 @@ export function generateICS(event: SoldierEvent): string {
   const reminderDate = new Date(Number(year), Number(month) - 1, Number(day) - 1, 17, 0);
   const diffMinutes = Math.round((eventDate.getTime() - reminderDate.getTime()) / 60000);
 
+  // Build description with all fields
   const descParts: string[] = [event.type];
+  if (event.eventKind && event.eventKind !== "חד פעמי") descParts.push(`סוג: ${event.eventKind}`);
+  if (event.endDate) descParts.push(`${event.eventKind === "פתיחה" ? "תאריך סיום" : "תאריך פתיחה"}: ${event.endDate.split("-").reverse().join("/")}`);
+  if (event.plannedSoldiers) descParts.push(`חיילים מתוכנן: ${event.plannedSoldiers}`);
+  if (event.actualSoldiers) descParts.push(`חיילים מעודכן: ${event.actualSoldiers}`);
+  if (event.placementTargets) descParts.push(`יעדי שיבוץ: ${event.placementTargets}`);
   if (event.description) descParts.push(event.description);
-  const descriptionText = descParts.join(" - ");
+  if (event.notes) descParts.push(`הערות: ${event.notes}`);
+  const descriptionText = descParts.join("\\n");
 
   const lines = [
     "BEGIN:VCALENDAR",

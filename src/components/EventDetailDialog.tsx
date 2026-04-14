@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Clock, MapPin, Tag, FileText, CalendarPlus, Pencil, Trash2, X } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Clock, MapPin, Tag, FileText, CalendarPlus, Pencil, Trash2, Users, Target, StickyNote, Link } from "lucide-react";
 import { downloadICS } from "@/lib/calendarExport";
 import type { SoldierEvent } from "@/lib/store";
 import {
@@ -10,6 +10,27 @@ import {
 } from "@/components/ui/dialog";
 
 const EVENT_TYPES: SoldierEvent["type"][] = ["מכינה", "גיוס", "טירונות", "חופשה", "תפילה", "אימון", "כללי"];
+const EVENT_KINDS: SoldierEvent["eventKind"][] = ["חד פעמי", "פתיחה", "סיום"];
+
+function AutoTextarea({ value, onChange, placeholder, className }: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.style.height = "auto";
+      ref.current.style.height = ref.current.scrollHeight + "px";
+    }
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={`bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary resize-none overflow-hidden ${className || ""}`}
+      rows={2}
+    />
+  );
+}
 
 interface EventDetailDialogProps {
   event: SoldierEvent | null;
@@ -53,7 +74,7 @@ export default function EventDetailDialog({ event, open, onClose, isEditMode, on
   if (isEditMode && isEditing && editData) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-right">עריכת אירוע</DialogTitle>
           </DialogHeader>
@@ -93,13 +114,81 @@ export default function EventDetailDialog({ event, open, onClose, isEditMode, on
               placeholder="מיקום (אופציונלי)"
               className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
             />
-            <textarea
-              value={editData.description || ""}
-              onChange={e => setEditData(p => p ? { ...p, description: e.target.value || undefined } : p)}
-              placeholder="תוכן / פרטים (אופציונלי)"
-              rows={3}
-              className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary resize-none"
+
+            {/* Event Kind */}
+            <div>
+              <label className="text-xs text-muted-foreground block text-right mb-1">סוג אירוע</label>
+              <div className="flex gap-1.5 flex-wrap justify-end">
+                {EVENT_KINDS.map(k => (
+                  <button
+                    key={k}
+                    onClick={() => setEditData(p => p ? { ...p, eventKind: k } : p)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                      (editData.eventKind || "חד פעמי") === k ? "bg-secondary text-secondary-foreground" : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {k}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* End Date - show for opening/closing events */}
+            {(editData.eventKind === "פתיחה" || editData.eventKind === "סיום") && (
+              <div>
+                <label className="text-xs text-muted-foreground block text-right mb-1">
+                  {editData.eventKind === "פתיחה" ? "תאריך סיום" : "תאריך פתיחה"}
+                </label>
+                <input
+                  type="date"
+                  value={editData.endDate || ""}
+                  onChange={e => setEditData(p => p ? { ...p, endDate: e.target.value || undefined } : p)}
+                  className="w-full bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            )}
+
+            {/* Soldier counts */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground block text-right mb-1">חיילים מתוכנן</label>
+                <input
+                  type="number"
+                  value={editData.plannedSoldiers ?? ""}
+                  onChange={e => setEditData(p => p ? { ...p, plannedSoldiers: e.target.value ? Number(e.target.value) : undefined } : p)}
+                  className="w-full bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block text-right mb-1">חיילים מעודכן</label>
+                <input
+                  type="number"
+                  value={editData.actualSoldiers ?? ""}
+                  onChange={e => setEditData(p => p ? { ...p, actualSoldiers: e.target.value ? Number(e.target.value) : undefined } : p)}
+                  className="w-full bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            <input
+              value={editData.placementTargets || ""}
+              onChange={e => setEditData(p => p ? { ...p, placementTargets: e.target.value || undefined } : p)}
+              placeholder="יעדי שיבוץ מתוכננים (אופציונלי)"
+              className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
             />
+
+            <AutoTextarea
+              value={editData.description || ""}
+              onChange={v => setEditData(p => p ? { ...p, description: v || undefined } : p)}
+              placeholder="תוכן / פרטים (אופציונלי)"
+            />
+
+            <AutoTextarea
+              value={editData.notes || ""}
+              onChange={v => setEditData(p => p ? { ...p, notes: v || undefined } : p)}
+              placeholder="הערות (אופציונלי)"
+            />
+
             <div className="flex gap-1.5 flex-wrap justify-end">
               {EVENT_TYPES.map(t => (
                 <button
@@ -135,7 +224,7 @@ export default function EventDetailDialog({ event, open, onClose, isEditMode, on
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-right">{event.title}</DialogTitle>
         </DialogHeader>
@@ -143,6 +232,9 @@ export default function EventDetailDialog({ event, open, onClose, isEditMode, on
           <div className="flex items-center gap-2 text-sm">
             <Tag className="w-4 h-4 text-muted-foreground" />
             <span className="font-medium">{event.type}</span>
+            {event.eventKind && event.eventKind !== "חד פעמי" && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-secondary/20 text-secondary">{event.eventKind}</span>
+            )}
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Clock className="w-4 h-4 text-muted-foreground" />
@@ -150,16 +242,44 @@ export default function EventDetailDialog({ event, open, onClose, isEditMode, on
             {event.time && <span>{event.time}</span>}
             {event.endTime && <span>- {event.endTime}</span>}
           </div>
+          {event.endDate && (
+            <div className="flex items-center gap-2 text-sm">
+              <Link className="w-4 h-4 text-muted-foreground" />
+              <span>{event.eventKind === "פתיחה" ? "תאריך סיום:" : "תאריך פתיחה:"} {event.endDate.split("-").reverse().join("/")}</span>
+            </div>
+          )}
           {event.location && (
             <div className="flex items-center gap-2 text-sm">
               <MapPin className="w-4 h-4 text-muted-foreground" />
               <span>{event.location}</span>
             </div>
           )}
+          {(event.plannedSoldiers || event.actualSoldiers) && (
+            <div className="flex items-center gap-2 text-sm">
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <span>
+                {event.plannedSoldiers && `מתוכנן: ${event.plannedSoldiers}`}
+                {event.plannedSoldiers && event.actualSoldiers && " | "}
+                {event.actualSoldiers && `מעודכן: ${event.actualSoldiers}`}
+              </span>
+            </div>
+          )}
+          {event.placementTargets && (
+            <div className="flex items-center gap-2 text-sm">
+              <Target className="w-4 h-4 text-muted-foreground" />
+              <span>{event.placementTargets}</span>
+            </div>
+          )}
           {event.description && (
             <div className="flex gap-2 text-sm">
               <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
               <p className="text-muted-foreground whitespace-pre-line">{event.description}</p>
+            </div>
+          )}
+          {event.notes && (
+            <div className="flex gap-2 text-sm">
+              <StickyNote className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+              <p className="text-muted-foreground whitespace-pre-line">{event.notes}</p>
             </div>
           )}
           <div className="flex gap-2 mt-2">

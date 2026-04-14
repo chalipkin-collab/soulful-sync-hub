@@ -125,39 +125,68 @@ export type Database = {
       }
       events: {
         Row: {
+          actual_soldiers: number | null
           created_at: string
           date: string
           description: string | null
+          end_date: string | null
           end_time: string | null
+          event_kind: string | null
           id: string
+          linked_event_id: string | null
           location: string | null
+          notes: string | null
+          placement_targets: string | null
+          planned_soldiers: number | null
           time: string | null
           title: string
           type: string
         }
         Insert: {
+          actual_soldiers?: number | null
           created_at?: string
           date: string
           description?: string | null
+          end_date?: string | null
           end_time?: string | null
+          event_kind?: string | null
           id?: string
+          linked_event_id?: string | null
           location?: string | null
+          notes?: string | null
+          placement_targets?: string | null
+          planned_soldiers?: number | null
           time?: string | null
           title: string
           type: string
         }
         Update: {
+          actual_soldiers?: number | null
           created_at?: string
           date?: string
           description?: string | null
+          end_date?: string | null
           end_time?: string | null
+          event_kind?: string | null
           id?: string
+          linked_event_id?: string | null
           location?: string | null
+          notes?: string | null
+          placement_targets?: string | null
+          planned_soldiers?: number | null
           time?: string | null
           title?: string
           type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_linked_event_id_fkey"
+            columns: ["linked_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       soldiers: {
         Row: {

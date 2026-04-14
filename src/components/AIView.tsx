@@ -540,7 +540,26 @@ export default function AIView({ context, onDataChanged }: AIViewProps) {
         >
           <Paperclip className="w-4 h-4" />
         </button>
-        <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSend()} placeholder={isRecording ? "🎤 מקליט..." : "שאל אותי משהו..."} disabled={isLoading || isRecording} className="flex-1 bg-muted rounded-full px-4 py-2.5 text-sm text-right outline-none focus:ring-1 focus:ring-primary disabled:opacity-50" />
+        <textarea
+          ref={(el) => {
+            if (el) {
+              el.style.height = "auto";
+              el.style.height = Math.min(el.scrollHeight, 120) + "px";
+            }
+          }}
+          value={input}
+          onChange={e => {
+            setInput(e.target.value);
+            const el = e.target;
+            el.style.height = "auto";
+            el.style.height = Math.min(el.scrollHeight, 120) + "px";
+          }}
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+          placeholder={isRecording ? "🎤 מקליט..." : "שאל אותי משהו..."}
+          disabled={isLoading || isRecording}
+          className="flex-1 bg-muted rounded-2xl px-4 py-2.5 text-sm text-right outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 resize-none overflow-hidden"
+          rows={1}
+        />
       </div>
     </div>
   );
