@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+export type RouteType = "יואב" | "מעלות צור" | "קודקוד";
+
 export interface SoldierEvent {
   id: string;
   title: string;
@@ -17,6 +19,7 @@ export interface SoldierEvent {
   actualSoldiers?: number;
   placementTargets?: string;
   notes?: string;
+  route?: RouteType;
 }
 
 export interface Task {
@@ -52,6 +55,7 @@ function mapEventRow(e: any): SoldierEvent {
     actualSoldiers: e.actual_soldiers ?? undefined,
     placementTargets: e.placement_targets ?? undefined,
     notes: e.notes ?? undefined,
+    route: e.route ?? undefined,
   };
 }
 
@@ -71,6 +75,7 @@ function eventToRow(event: Omit<SoldierEvent, "id">) {
     actual_soldiers: event.actualSoldiers ?? null,
     placement_targets: event.placementTargets ?? null,
     notes: event.notes ?? null,
+    route: event.route ?? null,
   };
 }
 
@@ -95,15 +100,15 @@ export function useEvents() {
         const { data: closingData } = await supabase.from("events").insert({
           ...eventToRow({
             ...event,
-            title: event.title.replace("פתיחת", "סיום").replace("תחילת", "סיום"),
+            title: event.title,
             date: event.endDate,
             eventKind: "סיום",
             endDate: event.date,
+            linkedEventId: newEvent.id,
           }),
           linked_event_id: newEvent.id,
         } as any).select().single();
         if (closingData) {
-          // Link back
           await supabase.from("events").update({ linked_event_id: closingData.id } as any).eq("id", newEvent.id);
           setEvents(prev => prev.map(e => e.id === newEvent.id ? { ...e, linkedEventId: closingData.id } : e).concat(mapEventRow(closingData)));
         }
@@ -115,6 +120,15 @@ export function useEvents() {
   const updateEvent = useCallback(async (event: SoldierEvent) => {
     await supabase.from("events").update(eventToRow(event) as any).eq("id", event.id);
     setEvents(prev => prev.map(e => e.id === event.id ? event : e));
+
+    // Sync linked event if exists
+    if (event.linkedEventId && event.endDate) {
+      await supabase.from("events").update({
+        end_date: event.date,
+        linked_event_id: event.id,
+      } as any).eq("id", event.linkedEventId);
+      setEvents(prev => prev.map(e => e.id === event.linkedEventId ? { ...e, endDate: event.date } : e));
+    }
   }, []);
 
   const deleteEvent = useCallback(async (id: string) => {
