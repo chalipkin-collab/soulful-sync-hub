@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { ChevronRight, ChevronLeft, Clock, Plus } from "lucide-react";
-import type { SoldierEvent } from "@/lib/store";
+import type { SoldierEvent, RouteType } from "@/lib/store";
 import { useEditMode } from "@/lib/EditModeContext";
 import EventDetailDialog from "./EventDetailDialog";
 import {
@@ -30,6 +30,13 @@ const TYPE_COLORS: Record<string, string> = {
 
 const EVENT_TYPES: SoldierEvent["type"][] = ["מכינה", "גיוס", "טירונות", "חופשה", "תפילה", "אימון", "כללי"];
 const EVENT_KINDS: SoldierEvent["eventKind"][] = ["חד פעמי", "פתיחה", "סיום"];
+const ROUTES: RouteType[] = ["יואב", "מעלות צור", "קודקוד"];
+
+const ROUTE_COLORS: Record<RouteType, string> = {
+  "יואב": "bg-blue-500/20 text-blue-400 border border-blue-500/30",
+  "מעלות צור": "bg-green-500/20 text-green-400 border border-green-500/30",
+  "קודקוד": "bg-purple-500/20 text-purple-400 border border-purple-500/30",
+};
 
 interface CalendarViewProps {
   events: SoldierEvent[];
@@ -45,10 +52,12 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
   const [view, setView] = useState<"month" | "week">("month");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [detailEvent, setDetailEvent] = useState<SoldierEvent | null>(null);
+  const [filterRoute, setFilterRoute] = useState<RouteType | null>(null);
   const [newEvent, setNewEvent] = useState({
     title: "", type: "כללי" as SoldierEvent["type"], time: "", endTime: "",
     location: "", description: "", eventKind: "חד פעמי" as SoldierEvent["eventKind"],
     endDate: "", plannedSoldiers: "", actualSoldiers: "", placementTargets: "", notes: "",
+    route: "" as RouteType | "",
   });
 
   const year = currentDate.getFullYear();
@@ -60,24 +69,39 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
+  const filteredEvents = useMemo(() => {
+    if (!filterRoute) return events;
+    return events.filter(e => e.route === filterRoute);
+  }, [events, filterRoute]);
+
   const eventsByDate = useMemo(() => {
     const map: Record<string, SoldierEvent[]> = {};
-    events.forEach(e => {
+    filteredEvents.forEach(e => {
       if (!map[e.date]) map[e.date] = [];
       map[e.date].push(e);
     });
     return map;
-  }, [events]);
+  }, [filteredEvents]);
+
+  // Current month + next month only
+  const upcomingEvents = useMemo(() => {
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0); // end of next month
+    const thisMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const nextMonthStr = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}`;
+    return filteredEvents
+      .filter(e => e.date.startsWith(thisMonthStr) || e.date.startsWith(nextMonthStr))
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || ""));
+  }, [filteredEvents]);
 
   // All events in current month
   const monthEvents = useMemo(() => {
     const monthStr = `${year}-${String(month + 1).padStart(2, "0")}`;
-    return events
+    return filteredEvents
       .filter(e => e.date.startsWith(monthStr))
       .sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || ""));
-  }, [events, year, month]);
+  }, [filteredEvents, year, month]);
 
-  // Selected date events + all month events
   const selectedDayEvents = selectedDate ? (eventsByDate[selectedDate] || []) : [];
 
   const navigate = (dir: number) => {
@@ -105,14 +129,48 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
       actualSoldiers: newEvent.actualSoldiers ? Number(newEvent.actualSoldiers) : undefined,
       placementTargets: newEvent.placementTargets.trim() || undefined,
       notes: newEvent.notes.trim() || undefined,
+      route: newEvent.route || undefined,
     });
     setNewEvent({
       title: "", type: "כללי", time: "", endTime: "", location: "", description: "",
       eventKind: "חד פעמי", endDate: "", plannedSoldiers: "", actualSoldiers: "",
-      placementTargets: "", notes: "",
+      placementTargets: "", notes: "", route: "",
     });
     setShowAddDialog(false);
   };
+
+  const handleNavigateToEvent = (event: SoldierEvent) => {
+    setDetailEvent(event);
+  };
+
+  const EventCard = ({ event, i, showDate = false }: { event: SoldierEvent; i: number; showDate?: boolean }) => (
+    <button
+      key={event.id}
+      onClick={() => setDetailEvent(event)}
+      className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors animate-fade-in-up text-right w-full"
+      style={{ animationDelay: `${i * 60}ms` }}
+    >
+      <div className="flex-shrink-0 mt-1">
+        <Clock className="w-4 h-4 text-muted-foreground" />
+      </div>
+      <div className="flex-1 text-right">
+        <p className="font-medium text-sm">{event.title}</p>
+        <div className="flex items-center gap-2 mt-1 justify-end flex-wrap">
+          {showDate && <span className="text-xs text-muted-foreground">{event.date.split("-").reverse().join("/")}</span>}
+          {event.time && <span className="text-xs text-muted-foreground">{event.time}</span>}
+          {event.eventKind && event.eventKind !== "חד פעמי" && (
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-secondary/20 text-secondary">{event.eventKind}</span>
+          )}
+          {event.route && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${ROUTE_COLORS[event.route]}`}>{event.route}</span>
+          )}
+        </div>
+      </div>
+      <span className={`text-[10px] px-2 py-0.5 rounded-full text-primary-foreground font-medium flex-shrink-0 ${TYPE_COLORS[event.type]}`}>
+        {event.type}
+      </span>
+    </button>
+  );
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in-up">
@@ -130,6 +188,25 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
         >
           חודש
         </button>
+      </div>
+
+      {/* Route Filter */}
+      <div className="flex gap-2 flex-wrap justify-end">
+        <button
+          onClick={() => setFilterRoute(null)}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${!filterRoute ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+        >
+          הכל
+        </button>
+        {ROUTES.map(r => (
+          <button
+            key={r}
+            onClick={() => setFilterRoute(filterRoute === r ? null : r)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filterRoute === r ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+          >
+            {r}
+          </button>
+        ))}
       </div>
 
       {/* Calendar Grid */}
@@ -206,27 +283,7 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
             </h3>
           </div>
           <div className="flex flex-col gap-2">
-            {selectedDayEvents.map((event, i) => (
-              <button
-                key={event.id}
-                onClick={() => setDetailEvent(event)}
-                className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors animate-fade-in-up text-right w-full"
-                style={{ animationDelay: `${i * 80}ms` }}
-              >
-                <div className="flex-shrink-0 mt-1">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <div className="flex-1 text-right">
-                  <p className="font-medium text-sm">{event.title}</p>
-                  <div className="flex items-center gap-2 mt-1 justify-end">
-                    {event.time && <span className="text-xs text-muted-foreground">{event.time}</span>}
-                  </div>
-                </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full text-primary-foreground font-medium ${TYPE_COLORS[event.type]}`}>
-                  {event.type}
-                </span>
-              </button>
-            ))}
+            {selectedDayEvents.map((event, i) => <EventCard key={event.id} event={event} i={i} />)}
           </div>
         </div>
       )}
@@ -245,7 +302,7 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
         </div>
       )}
 
-      {/* All Month Events */}
+      {/* Month Events */}
       <div className="glass-card p-4">
         <h3 className="text-sm font-semibold text-muted-foreground text-right mb-3">
           אירועי {HEBREW_MONTHS[month]}
@@ -254,30 +311,7 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
           <p className="text-sm text-muted-foreground text-center py-4">אין אירועים החודש</p>
         ) : (
           <div className="flex flex-col gap-2">
-            {monthEvents.map((event, i) => (
-              <button
-                key={event.id}
-                onClick={() => setDetailEvent(event)}
-                className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors animate-fade-in-up text-right w-full"
-                style={{ animationDelay: `${i * 60}ms` }}
-              >
-                <div className="flex-shrink-0 mt-1">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <div className="flex-1 text-right">
-                  <p className="font-medium text-sm">{event.title}</p>
-                  <div className="flex items-center gap-2 mt-1 justify-end">
-                    <span className="text-xs text-muted-foreground">
-                      {event.date.split("-").reverse().join("/")}
-                    </span>
-                    {event.time && <span className="text-xs text-muted-foreground">{event.time}</span>}
-                  </div>
-                </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full text-primary-foreground font-medium ${TYPE_COLORS[event.type]}`}>
-                  {event.type}
-                </span>
-              </button>
-            ))}
+            {monthEvents.map((event, i) => <EventCard key={event.id} event={event} i={i} />)}
           </div>
         )}
       </div>
@@ -301,20 +335,34 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
               onKeyDown={e => e.key === "Enter" && handleAddEvent()}
             />
             <div className="grid grid-cols-2 gap-2">
-              <input
-                type="time"
-                value={newEvent.time}
-                onChange={e => setNewEvent(p => ({ ...p, time: e.target.value }))}
-                className="bg-muted rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                placeholder="שעת התחלה"
-              />
-              <input
-                type="time"
-                value={newEvent.endTime}
-                onChange={e => setNewEvent(p => ({ ...p, endTime: e.target.value }))}
-                className="bg-muted rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                placeholder="שעת סיום"
-              />
+              <div>
+                <label className="text-xs text-muted-foreground block text-right mb-1">שעת התחלה</label>
+                <div className="flex gap-1">
+                  <input
+                    type="time"
+                    value={newEvent.time}
+                    onChange={e => setNewEvent(p => ({ ...p, time: e.target.value }))}
+                    className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  {newEvent.time && (
+                    <button onClick={() => setNewEvent(p => ({ ...p, time: "" }))} className="px-2 text-muted-foreground hover:text-destructive text-xs">✕</button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block text-right mb-1">שעת סיום</label>
+                <div className="flex gap-1">
+                  <input
+                    type="time"
+                    value={newEvent.endTime}
+                    onChange={e => setNewEvent(p => ({ ...p, endTime: e.target.value }))}
+                    className="flex-1 bg-muted rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  {newEvent.endTime && (
+                    <button onClick={() => setNewEvent(p => ({ ...p, endTime: "" }))} className="px-2 text-muted-foreground hover:text-destructive text-xs">✕</button>
+                  )}
+                </div>
+              </div>
             </div>
             <input
               value={newEvent.location}
@@ -322,6 +370,30 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
               placeholder="מיקום (אופציונלי)"
               className="bg-muted rounded-lg px-3 py-2 text-sm text-right outline-none focus:ring-1 focus:ring-primary"
             />
+
+            {/* Route */}
+            <div>
+              <label className="text-xs text-muted-foreground block text-right mb-1">מסלול</label>
+              <div className="flex gap-1.5 flex-wrap justify-end">
+                <button
+                  type="button"
+                  onClick={() => setNewEvent(p => ({ ...p, route: "" }))}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${!newEvent.route ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                >
+                  ללא
+                </button>
+                {ROUTES.map(r => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setNewEvent(p => ({ ...p, route: r }))}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${newEvent.route === r ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Event Kind */}
             <div>
@@ -346,7 +418,7 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
             {(newEvent.eventKind === "פתיחה" || newEvent.eventKind === "סיום") && (
               <div>
                 <label className="text-xs text-muted-foreground block text-right mb-1">
-                  {newEvent.eventKind === "פתיחה" ? "תאריך סיום" : "תאריך פתיחה"}
+                  {newEvent.eventKind === "פתיחה" ? "תאריך אירוע סיום" : "תאריך אירוע פתיחה"}
                 </label>
                 <input
                   type="date"
@@ -421,6 +493,7 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
           </div>
         </DialogContent>
       </Dialog>
+
       {/* Event Detail Dialog */}
       <EventDetailDialog
         event={detailEvent}
@@ -429,6 +502,8 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
         isEditMode={isEditMode}
         onDelete={onDeleteEvent}
         onUpdate={onUpdateEvent}
+        allEvents={events}
+        onNavigateToEvent={handleNavigateToEvent}
       />
     </div>
   );
