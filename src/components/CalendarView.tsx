@@ -147,8 +147,7 @@ export default function CalendarView({ events, onAddEvent, onDeleteEvent, onUpda
     <button
       key={event.id}
       onClick={() => setDetailEvent(event)}
-      className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors animate-fade-in-up text-right w-full"
-      style={{ animationDelay: `${i * 60}ms` }}
+      className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-right w-full"
     >
       <div className="flex-shrink-0 mt-1">
         <Clock className="w-4 h-4 text-muted-foreground" />
