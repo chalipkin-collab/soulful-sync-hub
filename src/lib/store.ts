@@ -121,13 +121,76 @@ export function useEvents() {
     await supabase.from("events").update(eventToRow(event) as any).eq("id", event.id);
     setEvents(prev => prev.map(e => e.id === event.id ? event : e));
 
-    // Sync linked event if exists
-    if (event.linkedEventId && event.endDate) {
-      await supabase.from("events").update({
-        end_date: event.date,
-        linked_event_id: event.id,
-      } as any).eq("id", event.linkedEventId);
-      setEvents(prev => prev.map(e => e.id === event.linkedEventId ? { ...e, endDate: event.date } : e));
+    // Sync linked event - copy all relevant fields and dates
+    if (event.linkedEventId) {
+      const counterpartKind: SoldierEvent["eventKind"] =
+        event.eventKind === "פתיחה" ? "סיום" : "פתיחה";
+      const counterpartDate = event.endDate || undefined;
+      if (counterpartDate) {
+        const counterpartUpdate: any = {
+          title: event.title,
+          type: event.type,
+          date: counterpartDate,
+          end_date: event.date,
+          event_kind: counterpartKind,
+          location: event.location ?? null,
+          description: event.description ?? null,
+          notes: event.notes ?? null,
+          route: event.route ?? null,
+          planned_soldiers: event.plannedSoldiers ?? null,
+          actual_soldiers: event.actualSoldiers ?? null,
+          placement_targets: event.placementTargets ?? null,
+          time: event.time ?? null,
+          end_time: event.endTime ?? null,
+          linked_event_id: event.id,
+        };
+        await supabase.from("events").update(counterpartUpdate).eq("id", event.linkedEventId);
+        setEvents(prev => prev.map(e => e.id === event.linkedEventId ? {
+          ...e,
+          title: event.title,
+          type: event.type,
+          date: counterpartDate,
+          endDate: event.date,
+          eventKind: counterpartKind,
+          location: event.location,
+          description: event.description,
+          notes: event.notes,
+          route: event.route,
+          plannedSoldiers: event.plannedSoldiers,
+          actualSoldiers: event.actualSoldiers,
+          placementTargets: event.placementTargets,
+          time: event.time,
+          endTime: event.endTime,
+        } : e));
+      }
+    } else if ((event.eventKind === "פתיחה" || event.eventKind === "סיום") && event.endDate) {
+      // No linked event yet - create one automatically
+      const counterpartKind: SoldierEvent["eventKind"] =
+        event.eventKind === "פתיחה" ? "סיום" : "פתיחה";
+      const counterpart: Omit<SoldierEvent, "id"> = {
+        title: event.title,
+        date: event.endDate,
+        type: event.type,
+        eventKind: counterpartKind,
+        endDate: event.date,
+        linkedEventId: event.id,
+        location: event.location,
+        description: event.description,
+        notes: event.notes,
+        route: event.route,
+        plannedSoldiers: event.plannedSoldiers,
+        actualSoldiers: event.actualSoldiers,
+        placementTargets: event.placementTargets,
+        time: event.time,
+        endTime: event.endTime,
+      };
+      const { data: newCounterpart } = await supabase.from("events").insert(eventToRow(counterpart) as any).select().single();
+      if (newCounterpart) {
+        await supabase.from("events").update({ linked_event_id: newCounterpart.id } as any).eq("id", event.id);
+        setEvents(prev => prev
+          .map(e => e.id === event.id ? { ...e, linkedEventId: newCounterpart.id } : e)
+          .concat(mapEventRow(newCounterpart)));
+      }
     }
   }, []);
 
