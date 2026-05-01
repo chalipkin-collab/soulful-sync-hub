@@ -336,7 +336,7 @@ ${contextStr ? `📊 נתוני המערכת:${contextStr}` : "(אין נתונ�
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         tools,
         stream: false,
@@ -489,7 +489,7 @@ ${contextStr ? `📊 נתוני המערכת:${contextStr}` : "(אין נתונ�
       const followUp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "google/gemini-2.5-flash", messages: followUpMessages, stream: true }),
+        body: JSON.stringify({ model: "google/gemini-2.5-pro", messages: followUpMessages, stream: true }),
       });
 
       if (followUp.ok) {
@@ -508,7 +508,7 @@ ${contextStr ? `📊 נתוני המערכת:${contextStr}` : "(אין נתונ�
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
       }),
