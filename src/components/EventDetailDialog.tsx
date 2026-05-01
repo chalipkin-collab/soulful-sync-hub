@@ -70,6 +70,7 @@ export default function EventDetailDialog({ event, open, onClose, isEditMode, on
     onUpdate?.(cleaned);
     setIsEditing(false);
     setEditData(null);
+    onClose();
   };
 
   const handleCancel = () => {
