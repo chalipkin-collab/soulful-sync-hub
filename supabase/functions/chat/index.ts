@@ -7,6 +7,8 @@ const corsHeaders = {
   "Access-Control-Expose-Headers": "X-Tool-Actions",
 };
 
+const AI_MODEL = "google/gemini-3-flash-preview";
+
 const tools = [
   {
     type: "function",
@@ -226,7 +228,7 @@ serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: AI_MODEL,
           messages,
           tools: [extractionTool],
           tool_choice: { type: "function", function: { name: "extract_items" } },
@@ -336,7 +338,7 @@ ${contextStr ? `📊 נתוני המערכת:${contextStr}` : "(אין נתונ�
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: AI_MODEL,
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         tools,
         stream: false,
