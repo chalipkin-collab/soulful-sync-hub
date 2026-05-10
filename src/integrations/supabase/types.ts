@@ -138,6 +138,7 @@ export type Database = {
           notes: string | null
           placement_targets: string | null
           planned_soldiers: number | null
+          route: string | null
           time: string | null
           title: string
           type: string
@@ -156,6 +157,7 @@ export type Database = {
           notes?: string | null
           placement_targets?: string | null
           planned_soldiers?: number | null
+          route?: string | null
           time?: string | null
           title: string
           type: string
@@ -174,6 +176,7 @@ export type Database = {
           notes?: string | null
           placement_targets?: string | null
           planned_soldiers?: number | null
+          route?: string | null
           time?: string | null
           title?: string
           type?: string
