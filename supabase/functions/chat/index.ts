@@ -7,6 +7,8 @@ const corsHeaders = {
   "Access-Control-Expose-Headers": "X-Tool-Actions",
 };
 
+const AI_MODEL = "google/gemini-3-flash-preview";
+
 const tools = [
   {
     type: "function",
@@ -226,7 +228,7 @@ serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: AI_MODEL,
           messages,
           tools: [extractionTool],
           tool_choice: { type: "function", function: { name: "extract_items" } },
@@ -336,7 +338,7 @@ ${contextStr ? `📊 נתוני המערכת:${contextStr}` : "(אין נתונ�
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: AI_MODEL,
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         tools,
         stream: false,
@@ -346,7 +348,7 @@ ${contextStr ? `📊 נתוני המערכת:${contextStr}` : "(אין נתונ�
     if (!response.ok) {
       const status = response.status;
       if (status === 429) return new Response(JSON.stringify({ error: "יותר מדי בקשות, נסה שוב." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (status === 402) return new Response(JSON.stringify({ error: "נדרש תשלום." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (status === 402) return new Response(JSON.stringify({ error: "יתרת ה-AI נגמרה. צריך להוסיף קרדיט ב-Settings → Cloud & AI balance כדי להמשיך להשתמש בעוזר החכם." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       return new Response(JSON.stringify({ error: "שגיאה בשירות AI" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -489,7 +491,7 @@ ${contextStr ? `📊 נתוני המערכת:${contextStr}` : "(אין נתונ�
       const followUp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "google/gemini-2.5-pro", messages: followUpMessages, stream: true }),
+        body: JSON.stringify({ model: AI_MODEL, messages: followUpMessages, stream: true }),
       });
 
       if (followUp.ok) {
@@ -508,7 +510,7 @@ ${contextStr ? `📊 נתוני המערכת:${contextStr}` : "(אין נתונ�
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: AI_MODEL,
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
       }),
